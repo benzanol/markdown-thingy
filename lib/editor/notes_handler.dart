@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:notes/drawer/left_drawer.dart';
 import 'package:notes/editor/note_editor.dart';
 import 'package:notes/editor/state.dart';
 
@@ -19,22 +20,38 @@ class _NoteHandlerState extends State<NoteHandler> {
   _NoteHandlerState();
 
   bool raw = false;
-  String? note;
+  File? noteFile;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final indexFile = widget.state.repoFile('index.md');
+    if (indexFile.existsSync()) {
+      setState(() => noteFile = indexFile);
+    }
+  }
+
+  Widget leftDrawer() => LeftDrawer(
+    dir: widget.directory,
+    openFile: (file) => setState(() => noteFile = file),
+  );
 
   @override
   Widget build(BuildContext context) {
-    final notePath = note;
-    if (notePath == null) {
+    final note = noteFile;
+    if (note == null) {
       final controller = TextEditingController();
       return Scaffold(
         appBar: AppBar(
           title: const Text('Do something'),
         ),
+        drawer: leftDrawer(),
         body: Column(
           children: [
             TextField(controller: controller),
             ElevatedButton(
-              onPressed: () => setState(() => note = controller.text),
+              onPressed: () => setState(() => noteFile = File(controller.text)),
               child: Text('Open'),
             )
           ],
@@ -44,8 +61,8 @@ class _NoteHandlerState extends State<NoteHandler> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: BackButton(onPressed: () => setState(() => note = null)),
-        title: Text(notePath),
+        // leading: BackButton(onPressed: () => setState(() => noteFile = null)),
+        title: Text(note.path.replaceFirst('${widget.directory.path}/', '')),
         actions: [
           Row(children: [
               Text('Raw'),
@@ -53,8 +70,9 @@ class _NoteHandlerState extends State<NoteHandler> {
           ]),
         ],
       ),
+      drawer: leftDrawer(),
       body: FutureBuilder(
-        future: widget.state.getContents(notePath),
+        future: widget.state.getContents(note),
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return Text('LOADING');
@@ -63,7 +81,7 @@ class _NoteHandlerState extends State<NoteHandler> {
           if (data == null) return Text('Null data');
           return NoteEditor(
             init: data,
-            onUpdate: (editor) => widget.state.markModified(notePath, editor),
+            onUpdate: (editor) => widget.state.markModified(note, editor),
             raw: raw,
           );
         },

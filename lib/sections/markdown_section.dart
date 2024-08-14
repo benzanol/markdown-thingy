@@ -11,15 +11,18 @@ class MarkdownSection extends NoteSection {
   String getText() => _controller.text;
 
   @override
-  Widget widget(BuildContext context) => TextField(
-    controller: _controller,
-    onChanged: (_) => onUpdate?.call(),
+  Widget widget(BuildContext context) => Container(
+    decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
+    child: TextField(
+      controller: _controller,
+      onChanged: (_) => onUpdate?.call(),
 
-    maxLines: null,
-    decoration: const InputDecoration(
-      isDense: true,
-      border: InputBorder.none,
-      contentPadding: EdgeInsets.symmetric(horizontal: hPadding, vertical: vPadding),
+      maxLines: null,
+      decoration: const InputDecoration(
+        isDense: true,
+        border: InputBorder.none,
+        contentPadding: EdgeInsets.all(textPadding),
+      ),
     ),
   );
 }

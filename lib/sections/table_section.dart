@@ -66,20 +66,14 @@ class TableSection extends NoteSection {
 
     final scrollController = ScrollController();
     const double scrollThickness = 5;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: hPadding),
-      child: Scrollbar(
-        thickness: scrollThickness,
-        thumbVisibility: true,
+    return Scrollbar(
+      thickness: scrollThickness,
+      thumbVisibility: true,
+      controller: scrollController,
+      child: SingleChildScrollView(
         controller: scrollController,
-        child: SingleChildScrollView(
-          controller: scrollController,
-          scrollDirection: Axis.horizontal,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: vPadding),
-            child: tableWidget
-          ),
-        ),
+        scrollDirection: Axis.horizontal,
+        child: tableWidget,
       ),
     );
   }

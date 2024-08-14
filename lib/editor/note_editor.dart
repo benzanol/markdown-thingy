@@ -3,8 +3,9 @@ import 'package:notes/sections/markdown_section.dart';
 import 'package:notes/sections/table_section.dart';
 
 
-const double hPadding = 16;
-const double vPadding = 8;
+const double hMargin = 8;
+const double vMargin = 4;
+const double textPadding = 8;
 
 
 List<NoteSection> _generateSections(String text, {Function()? onUpdate, bool raw = false}) {
@@ -66,15 +67,23 @@ class NoteEditor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scrollController = ScrollController();
-    return Scrollbar(
-      thickness: 5,
-      thumbVisibility: true,
-      controller: scrollController,
-      child: ListView.builder(
+    return Container(
+      color: Theme.of(context).colorScheme.secondaryContainer,
+      padding: const EdgeInsets.symmetric(horizontal: hMargin, vertical: vMargin),
+      child: Scrollbar(
+        thickness: 5,
+        thumbVisibility: true,
         controller: scrollController,
-        itemCount: sections.length,
-        itemBuilder: (context, idx) => sections[idx].widget(context),
-      ),
+        child: ListView.builder(
+          controller: scrollController,
+          itemCount: sections.length,
+          itemBuilder: (context, idx) => Container(
+            margin: const EdgeInsets.symmetric(vertical: vMargin),
+            color: Theme.of(context).colorScheme.surface,
+            child: sections[idx].widget(context),
+          ),
+        ),
+      )
     );
   }
 }

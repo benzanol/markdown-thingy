@@ -15,19 +15,19 @@ class NotesState {
   Map<String, NoteEditor> _modified = {};
 
 
-  File getFile(String path) => File('${directory.path}/$path');
+  File repoFile(String path) => File.fromUri(directory.uri.resolve(path));
 
-  void markModified(String file, NoteEditor note) => _modified[file] = note;
+  void markModified(File file, NoteEditor note) => _modified[file.path] = note;
 
-  Future<String> getContents(String path) async {
-    final editor = _modified[path];
+  Future<String> getContents(File file) async {
+    final editor = _modified[file.path];
     if (editor != null) return editor.getText();
 
-    final existing = _notes[path];
+    final existing = _notes[file.path];
     if (existing != null) return existing;
 
-    final contents = await getFile(path).readAsString();
-    _notes[path] = contents;
+    final contents = await file.readAsString();
+    _notes[file.path] = contents;
     return contents;
   }
 
@@ -37,7 +37,7 @@ class NotesState {
     final futures = _modified.entries.map((entry) {
         final content = entry.value.getText();
         _notes[entry.key] = content;
-        return getFile(entry.key).writeAsString(content);
+        return File(entry.key).writeAsString(content);
     }).toList();
     _modified = {};
     await Future.wait(futures);
