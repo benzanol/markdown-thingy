@@ -21,7 +21,7 @@ class NotesState {
 
   Future<String> getContents(File file) async {
     final editor = _modified[file.path];
-    if (editor != null) return editor.getText();
+    if (editor != null) return editor.toText();
 
     final existing = _notes[file.path];
     if (existing != null) return existing;
@@ -35,7 +35,7 @@ class NotesState {
     if (_modified.isEmpty) return;
 
     final futures = _modified.entries.map((entry) {
-        final content = entry.value.getText();
+        final content = entry.value.toText();
         _notes[entry.key] = content;
         return File(entry.key).writeAsString(content);
     }).toList();

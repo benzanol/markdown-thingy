@@ -2,16 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:notes/editor/note_editor.dart';
 import 'package:notes/extensions/lua.dart';
 import 'package:notes/extensions/lua_result.dart';
+import 'package:notes/structure/structure.dart';
 
 
-class CodeSection extends NoteSection {
-  CodeSection(String init, {required this.language})
-  : _controller = TextEditingController(text: init);
+class StructureCode extends StructureElement {
+  StructureCode(this._content, {required String language}) : _language = language;
+  String _content;
+  final String _language;
 
-  final String language;
-  final TextEditingController _controller;
-
-  static (NoteSection, int)? maybeParse(List<String> lines, int line) {
+  static (StructureCode, int)? maybeParse(List<String> lines, int line) {
     if (!lines[line].startsWith('```')) return null;
     final language = lines[line].substring(3);
 
@@ -20,20 +19,21 @@ class CodeSection extends NoteSection {
 
     final endLineNum = endLine.$1 + (line+1);
     final contents = lines.getRange(line+1, endLineNum).join('\n');
-    return (CodeSection(contents, language: language), endLineNum + 1);
+    return (StructureCode(contents, language: language), endLineNum + 1);
   }
 
   @override
-  String getText() => '```$language\n${_controller.text}\n```';
+  String toText() => '```$_language\n$_content\n```';
 
   @override
-  Widget widget(BuildContext context) => _CodeSectionWidget(this);
+  Widget widget(Function() onUpdate) => _CodeSectionWidget(this, onUpdate);
 }
 
 
 class _CodeSectionWidget extends StatefulWidget {
-  const _CodeSectionWidget(this.section);
-  final CodeSection section;
+  const _CodeSectionWidget(this.element, this.onUpdate);
+  final StructureCode element;
+  final Function() onUpdate;
 
   @override
   State<_CodeSectionWidget> createState() => __CodeSectionWidgetState();
@@ -42,8 +42,8 @@ class _CodeSectionWidget extends StatefulWidget {
 class __CodeSectionWidgetState extends State<_CodeSectionWidget> {
   __CodeSectionWidgetState();
 
-  String get language => widget.section.language;
-  TextEditingController get controller => widget.section._controller;
+  String get language => widget.element._language;
+  String get content => widget.element._content;
 
   LuaResult? result;
 
@@ -54,18 +54,21 @@ class __CodeSectionWidgetState extends State<_CodeSectionWidget> {
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(widget.section.language),
+          Text(language),
           language != 'lua' ? Container() : IconButton(
             icon: const Icon(Icons.play_arrow),
-            onPressed: () => setState(() => result = executeLua(controller.text)),
+            onPressed: () => setState(() => result = executeLua(content)),
           ),
         ]
       ),
       Container(
         decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
         child: TextField(
-          controller: controller,
-          onChanged: (_) => widget.section.onUpdate?.call(),
+          controller: TextEditingController(text: content),
+          onChanged: (newText) {
+            widget.element._content = newText;
+            widget.onUpdate();
+          },
 
           maxLines: null,
           decoration: const InputDecoration(
