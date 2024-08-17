@@ -52,7 +52,7 @@ class _NoteHandlerState extends State<NoteHandler> {
             TextField(controller: controller),
             ElevatedButton(
               onPressed: () => setState(() => noteFile = File(controller.text)),
-              child: Text('Open'),
+              child: const Text('Open'),
             )
           ],
         ),
@@ -65,7 +65,7 @@ class _NoteHandlerState extends State<NoteHandler> {
         title: Text(note.path.replaceFirst('${widget.directory.path}/', '')),
         actions: [
           Row(children: [
-              Text('Raw'),
+              const Text('Raw'),
               Switch(value: raw, onChanged: (b) => setState(() { raw = b; })),
           ]),
         ],
@@ -75,10 +75,10 @@ class _NoteHandlerState extends State<NoteHandler> {
         future: widget.state.getContents(note),
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return Text('LOADING');
+            return const Text('LOADING');
           }
           final data = snapshot.data;
-          if (data == null) return Text('Null data');
+          if (data == null) return const Text('Null data');
           return NoteEditor(
             init: data,
             onUpdate: (editor) => widget.state.markModified(note, editor),

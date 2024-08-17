@@ -17,7 +17,7 @@ class LeftDrawer extends StatelessWidget {
       child: Container(
         alignment: Alignment.topLeft,
         padding: const EdgeInsets.all(10),
-        child: FileBrowserDirectory(dir: dir, openFile: openFile),
+        child: FileBrowser(dir: dir, openFile: openFile),
       ),
     );
   }

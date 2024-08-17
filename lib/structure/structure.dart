@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 
 
+abstract class StructureElement {
+  Widget widget(Function() onUpdate);
+  String toText();
+}
+
 class NoteStructure {
   NoteStructure({required this.props, required this.content, required this.headings});
   Map<String, String> props;
   List<StructureElement> content;
   List<(String, NoteStructure)> headings;
+
+  NoteStructure? getHeading(String name) => headings.where((tup) => tup.$1 == name).firstOrNull?.$2;
 
   String toText() {
     final buf = StringBuffer();
@@ -38,9 +45,4 @@ class NoteStructure {
       body._write(buf, level: level + 1);
     }
   }
-}
-
-abstract class StructureElement {
-  Widget widget(Function() onUpdate);
-  String toText();
 }

@@ -18,10 +18,12 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: MediaQuery(
+      // Having this as a builder means that overlays and popups will also be affected
+      builder: (context, child) => MediaQuery(
         data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1)),
-        child: NoteHandler(directory: Directory('/home/benzanol/Documents/repo')),
+        child: child ?? Container(),
       ),
+      home: NoteHandler(directory: Directory('/home/benzanol/Documents/repo')),
     );
   }
 }

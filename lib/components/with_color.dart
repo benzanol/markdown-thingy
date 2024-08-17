@@ -10,15 +10,14 @@ class WithColor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (color == null && scheme == null) return child;
-
-    final theme = Theme.of(context).copyWith();
-    final c = color ?? scheme!(theme.colorScheme);
+    final theme = Theme.of(context);
+    final textStyle = DefaultTextStyle.of(context);
+    final c = color ?? scheme?.call(theme.colorScheme) ?? theme.colorScheme.onSurface;
 
     return Theme(
       data: theme.copyWith(colorScheme: theme.colorScheme.copyWith(onSurface: c)),
       child: DefaultTextStyle(
-        style: TextStyle(color: c),
+        style: textStyle.style.copyWith(color: c),
         child: child,
       ),
     );
