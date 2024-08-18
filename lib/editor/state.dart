@@ -4,9 +4,12 @@ import 'dart:io';
 import 'package:notes/editor/note_editor.dart';
 
 
+const Duration saveInterval = Duration(seconds: 1);
+
+
 class NotesState {
   NotesState({required this.directory}) {
-    saveTimer = Timer.periodic(const Duration(seconds: 5), (_) => saveAll());
+    saveTimer = Timer.periodic(saveInterval, (_) => saveAll());
   }
   final Directory directory;
   late final Timer saveTimer;

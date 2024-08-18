@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:notes/extensions/lenses.dart';
+import 'package:notes/extensions/lua.dart';
+import 'package:notes/extensions/lua_ui.dart';
 import 'package:notes/structure/structure.dart';
 
 
@@ -7,13 +9,14 @@ final RegExp lensStartRegexp = RegExp(r'^#\+begin_lens ([a-zA-Z0-9]+)/([a-zA-Z0-
 final RegExp lensEndRegexp = RegExp(r'^#\+end_lens$');
 
 
-class StructureLens extends StructureElement {
-  StructureLens.generate({required this.lens, required this.init})
-  : _instanceId = lens.generateState(init);
-
+abstract class StructureLens extends StructureElement {
+  StructureLens({required this.lens, required this.init});
   final LensExtension lens;
   final String init;
-  final int _instanceId;
+
+  String formatContent(String content) => (
+    '#+begin_lens ${lens.dir}/${lens.name}\n$content\n#+end_lens'
+  );
 
   static (StructureLens, int)? maybeParse(List<String> lines, int line) {
     final startMatch = lensStartRegexp.firstMatch(lines[line]);
@@ -28,45 +31,86 @@ class StructureLens extends StructureElement {
     final content = lines.getRange(line + 1, endLine.$1).join('\n');
     final nextLine = endLine.$1 + 1;
     try {
-      return (StructureLens.generate(lens: lens, init: content), nextLine);
+      return (StructureSuccessfulLens.generate(lens: lens, init: content), nextLine);
     } catch (e) {
       return (StructureFailedLens(lens: lens, init: content, error: '$e'), nextLine);
     }
   }
-
-  @override
-  String toText() {
-    String content;
-    try {
-      content = lens.generateText(_instanceId);
-    } catch (e) {
-      content = init;
-    }
-    return '#+begin_lens ${lens.dir}/${lens.name}\n$content\n#+end_lens';
-  }
-
-  @override
-  Widget widget(Function() onUpdate) {
-    try {
-      return lens.generateUi(_instanceId).widget();
-    } catch (e) {
-      return Text('$e', style: const TextStyle(color: Colors.red));
-    }
-  }
 }
 
-class StructureFailedLens implements StructureLens {
-  StructureFailedLens({required this.lens, required this.init, required this.error});
-  @override final LensExtension lens;
-  @override int get _instanceId => 0;
-  @override final String init;
+class StructureFailedLens extends StructureLens {
+  StructureFailedLens({required super.lens, required super.init, required this.error});
   final String error;
 
   @override
-  String toText() => init;
+  String toText() => formatContent(init);
 
   @override
   Widget widget(Function() onUpdate) => (
     Text(error, style: const TextStyle(color: Colors.red))
   );
+}
+
+
+class StructureSuccessfulLens extends StructureLens {
+  StructureSuccessfulLens.generate({required super.lens, required super.init})
+  : _instanceId = lens.generateState(init);
+  final int _instanceId;
+
+  @override
+  String toText() {
+    try {
+      return formatContent(lens.generateText(_instanceId));
+    } catch (e) {
+      return formatContent(init);
+    }
+  }
+
+  @override
+  Widget widget(Function() onUpdate) => _SuccessfulLensWidget(this, onUpdate);
+}
+
+class _SuccessfulLensWidget extends StatefulWidget {
+  const _SuccessfulLensWidget(this.lensElem, this.onUpdate);
+  final StructureSuccessfulLens lensElem;
+  final Function() onUpdate;
+
+  @override
+  State<_SuccessfulLensWidget> createState() => __SuccessfulLensWidgetState();
+}
+
+class __SuccessfulLensWidgetState extends State<_SuccessfulLensWidget> {
+  __SuccessfulLensWidgetState();
+
+  void performChange(LuaUi component) {
+    luaState.setTop(0);
+
+    // Load the lua ui component into the stack
+    luaLoadTableEntry(instancesVariable, [widget.lensElem._instanceId.toString(), instanceUiField]);
+    for (final index in component.path) {
+      luaState.pushInteger(index + 1); // Lua is one indexed
+      luaState.getTable(-2);
+      // Remove the old table
+      luaState.insert(-2);
+      luaState.pop(1);
+    }
+
+    // Call the component specific change code
+    component.performChange(luaState);
+
+    // Redisplay
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    try {
+      return widget.lensElem.lens.generateUi(widget.lensElem._instanceId).widget((component) {
+          performChange(component);
+          widget.onUpdate();
+      });
+    } catch (e) {
+      return Text('$e', style: const TextStyle(color: Colors.red));
+    }
+  }
 }

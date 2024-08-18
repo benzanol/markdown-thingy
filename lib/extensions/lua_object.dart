@@ -9,6 +9,7 @@ List<LuaObject> parseStack(LuaState lua) {
 abstract class LuaObject {
   dynamic get value;
   @override String toString() => value.toString();
+  String display() => value.toString();
 
   @override
   bool operator ==(Object other) => (

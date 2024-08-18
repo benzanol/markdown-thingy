@@ -16,20 +16,59 @@ LuaState _initializeLua() {
 }
 
 
-T luaEval<T>(T Function(LuaState state) fn, {int args = 0}) {
+LuaResult luaExecuteCode(String code) {
   try {
-    luaState.call(args, 1);
-    return fn(luaState);
-  } finally {
     luaState.setTop(0);
-  }
-}
-
-LuaResult luaEvalToResult(String code) {
-  try {
     luaState.loadString(code);
-    return luaEval((state) => LuaSuccess(LuaObject.parse(state)));
+    luaState.call(0, 1);
+    return LuaSuccess(LuaObject.parse(luaState));
   } catch (e) {
     return LuaFailure(e.toString());
   }
+}
+
+void luaLoadTableEntry(String variable, List<String> fields) {
+  luaState.getGlobal(variable);
+
+  for (final field in fields) {
+    luaState.getField(-1, field);
+    // Remove the old table
+    luaState.insert(-2);
+    luaState.pop(1);
+  }
+}
+
+void luaGetCreateTables(String variable, List<String> fields) {
+  luaState.getGlobal(variable);
+
+  for (final field in fields) {
+    // Try getting the value
+    luaState.getField(-1, field);
+
+    // If its nil, set a new value and push it
+    if (luaState.isNil(-1)) {
+      luaState.pop(1);
+
+      // Set the field to a new table
+      luaState.newTable();
+      luaState.setField(-2, field);
+
+      // Get the new table
+      luaState.getField(-1, field);
+    }
+
+    // Remove the old table
+    luaState.insert(-2);
+    luaState.pop(1);
+  }
+}
+
+// Put the top object in the stack into the table (and removes it from the stack)
+void luaSetTableEntry(String variable, List<String> fields) {
+  luaGetCreateTables(variable, fields.sublist(0, fields.length - 1));
+
+  // State should look like [value, table]
+  luaState.insert(-2);
+  luaState.setField(-2, fields.last);
+  luaState.pop(1);
 }

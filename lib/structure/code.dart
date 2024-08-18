@@ -57,7 +57,7 @@ class __CodeSectionWidgetState extends State<_CodeSectionWidget> {
           Text(language),
           language != 'lua' ? Container() : IconButton(
             icon: const Icon(Icons.play_arrow),
-            onPressed: () => setState(() => result = luaEvalToResult(content)),
+            onPressed: () => setState(() => result = luaExecuteCode(content)),
           ),
         ]
       ),

@@ -13,12 +13,15 @@ List<LensExtension> lensExtensions = [];
 
 const String lensDirectory = 'lenses';
 const String lensFileExtension = '.md';
-const String lensesVariable = '__lenses__';
-const String instancesVariable = '__lens_instances__';
 
 const String toStateHeading = 'Parse';
 const String toTextHeading = 'Print';
 const String toUiHeading = 'Render';
+
+const String lensesVariable = '__lenses__';
+const String instancesVariable = '__lens_instances__';
+const String instanceStateField = 'state';
+const String instanceUiField = 'ui';
 
 
 class LensExtension {
@@ -26,51 +29,26 @@ class LensExtension {
   final String dir;
   final String name;
 
-  void _loadFunction(String heading) {
-    luaState.getGlobal(lensesVariable);
-
-    luaState.pushString(dir);
-    luaState.getTable(-2);
-
-    luaState.pushString(name);
-    luaState.getTable(-2);
-
-    luaState.pushString(heading.toLowerCase());
-    luaState.getTable(-2);
-
-    // Stack is [lenses, dir, lens, function]
-    luaState.insert(-4);
-    luaState.pop(3);
-  }
-
   int generateState(String content) {
     luaState.setTop(0);
 
-    final randomId = Random().nextInt(1000000000);
-    luaState.getGlobal(instancesVariable);
-    luaState.pushString('$randomId');
-
-    // Call the function
-    _loadFunction(toStateHeading);
+    // Call the toState function on the content
+    luaLoadTableEntry(lensesVariable, [dir, name, toStateHeading.toLowerCase()]);
     luaState.pushString(content);
     luaState.call(1, 1);
 
     // Push the result into the instances table at index `randomId`
-    luaState.setTable(-3);
-
+    final randomId = Random().nextInt(1000000000);
+    luaSetTableEntry(instancesVariable, [randomId.toString(), instanceStateField]);
     return randomId;
   }
 
   String generateText(int id) {
     luaState.setTop(0);
 
-    // Get the current state
-    luaState.getGlobal(instancesVariable);
-    _loadFunction(toTextHeading);
-    luaState.pushString('$id');
-    // Stack is [instances, toTextFn, id]
-    luaState.getTable(-3);
-    // Stack is [instances, toTextFn, instance]
+    // Call the text function on the state
+    luaLoadTableEntry(lensesVariable, [dir, name, toTextHeading.toLowerCase()]);
+    luaLoadTableEntry(instancesVariable, [id.toString(), instanceStateField]);
     luaState.call(1, 1);
 
     return luaState.toStr(-1)!;
@@ -79,14 +57,14 @@ class LensExtension {
   LuaUi generateUi(int id) {
     luaState.setTop(0);
 
-    // Get the current state
-    luaState.getGlobal(instancesVariable);
-    _loadFunction(toUiHeading);
-    luaState.pushString('$id');
-    // Stack is [instances, toUiFn, id]
-    luaState.getTable(-3);
-    // Stack is [instances, toUiFn, instance]
+    // Call the ui function on the state
+    luaLoadTableEntry(lensesVariable, [dir, name, toUiHeading.toLowerCase()]);
+    luaLoadTableEntry(instancesVariable, [id.toString(), instanceStateField]);
     luaState.call(1, 1);
+
+    // Copy the value reference, and put it into the instances table
+    luaState.pushValue(-1);
+    luaSetTableEntry(instancesVariable, [id.toString(), instanceUiField]);
 
     return LuaUi.parse(LuaObject.parse(luaState));
   }
@@ -94,52 +72,23 @@ class LensExtension {
 
 
 // Evaluate the lens functions in lua, and store them in `lensesVariable.dir.name`
-void _initializeLens(String dir, String name, NoteStructure struct) {
-  // Load a new table into the stack
-  luaState.loadString('return {}');
+void _initializeLensHeading(String dir, String name, String heading, NoteStructure struct) {
+  // Get the heading
+  final headBody = struct.getHeading(heading, noCase: true);
+  if (headBody == null) throw 'Missing heading $heading';
+
+  // Exctract the code
+  final code = headBody.content.expand<String>((elem) => (
+      (elem is StructureCode && elem.language == 'lua') ? [elem.content, '\n'] : []
+  )).join();
+  if (code.isEmpty) throw 'No code block in heading $heading';
+
+  // Generate the function onto the stack
+  luaState.loadString(code);
   luaState.call(0, 1);
+  if (!luaState.isFunction(-1)) throw 'Heading $heading did not return function';
 
-  // Load the 3 properties for the table
-  for (final heading in [toStateHeading, toTextHeading, toUiHeading]) {
-    // Get the heading
-    final headBody = struct.getHeading(heading, noCase: true);
-    if (headBody == null) throw 'Missing heading $heading';
-
-    // Exctract the code
-    final code = headBody.content.expand<String>((elem) => (
-        (elem is StructureCode && elem.language == 'lua') ? [elem.content, '\n'] : []
-    )).join();
-    if (code.isEmpty) throw 'No code block in heading $heading';
-
-    // Load the arguments
-    luaState.pushString(heading.toLowerCase());
-    luaState.loadString(code);
-    luaState.call(0, 1);
-    if (!luaState.isFunction(-1)) throw 'Heading $heading did not return function';
-
-    luaState.setTable(-3);
-  }
-
-  luaState.getGlobal(lensesVariable);
-
-  // Create the table if it doesn't exist
-  final dirAccess = '$lensesVariable["$dir"]';
-  luaState.doString('if $dirAccess == nil then $dirAccess = {} end');
-
-  // Push the table to the stack
-  luaState.pushString(dir);
-  luaState.getTable(-2);
-
-  // Now the stack is [lens, global, dir]
-  luaState.insert(-3);
-  luaState.pop(1);
-  // Now the stack is [dir, lens]
-  luaState.pushString(name);
-  luaState.insert(-2);
-  // Now the stack is [dir, filename, lens]
-  luaState.setTable(-3);
-
-  luaState.setTop(0);
+  luaSetTableEntry(lensesVariable, [dir, name, heading.toLowerCase()]);
 }
 
 Future<void> loadLenses(Directory rootDir) async {
@@ -169,10 +118,14 @@ Future<void> loadLenses(Directory rootDir) async {
   final lensFutures = lensBodies.map((file) async {
       try {
         final struct = parseStructure(file.body.split('\n'));
-        _initializeLens(file.dir, file.name, struct);
+        // Load the 3 properties for the table
+        for (final heading in [toStateHeading, toTextHeading, toUiHeading]) {
+          _initializeLensHeading(file.dir, file.name, heading, struct);
+        }
         return [LensExtension(dir: file.dir, name: file.name)];
 
       } catch (e) {
+        // ignore: avoid_print
         print('Error parsing ${file.dir}/${file.name}: $e');
         return <LensExtension>[];
 
