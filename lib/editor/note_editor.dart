@@ -7,6 +7,7 @@ import 'package:notes/structure/text.dart';
 const double hMargin = 8;
 const double vMargin = 4;
 const double textPadding = 8;
+const Color borderColor = Colors.grey;
 
 
 class NoteEditor extends StatelessWidget {

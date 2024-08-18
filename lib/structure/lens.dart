@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:notes/components/hscroll.dart';
+import 'package:notes/editor/note_editor.dart';
 import 'package:notes/extensions/lenses.dart';
 import 'package:notes/extensions/lua.dart';
 import 'package:notes/extensions/lua_ui.dart';
@@ -36,7 +38,18 @@ abstract class StructureLens extends StructureElement {
       return (StructureFailedLens(lens: lens, init: content, error: '$e'), nextLine);
     }
   }
+
+
+  Widget childWidget(Function() onUpdate);
+  @override
+  Widget widget(Function() onUpdate) => Container(
+    decoration: BoxDecoration(border: Border.all(color: borderColor)),
+    padding: const EdgeInsets.all(textPadding),
+    alignment: Alignment.topLeft,
+    child: childWidget(onUpdate),
+  );
 }
+
 
 class StructureFailedLens extends StructureLens {
   StructureFailedLens({required super.lens, required super.init, required this.error});
@@ -46,7 +59,7 @@ class StructureFailedLens extends StructureLens {
   String toText() => formatContent(init);
 
   @override
-  Widget widget(Function() onUpdate) => (
+  Widget childWidget(Function() onUpdate) => (
     Text(error, style: const TextStyle(color: Colors.red))
   );
 }
@@ -67,7 +80,7 @@ class StructureSuccessfulLens extends StructureLens {
   }
 
   @override
-  Widget widget(Function() onUpdate) => _SuccessfulLensWidget(this, onUpdate);
+  Widget childWidget(Function() onUpdate) => _SuccessfulLensWidget(this, onUpdate);
 }
 
 class _SuccessfulLensWidget extends StatefulWidget {
@@ -105,10 +118,12 @@ class __SuccessfulLensWidgetState extends State<_SuccessfulLensWidget> {
   @override
   Widget build(BuildContext context) {
     try {
-      return widget.lensElem.lens.generateUi(widget.lensElem._instanceId).widget((component) {
-          performChange(component);
-          widget.onUpdate();
-      });
+      return Hscroll(
+        child: widget.lensElem.lens.generateUi(widget.lensElem._instanceId).widget((component) {
+            performChange(component);
+            widget.onUpdate();
+        }),
+      );
     } catch (e) {
       return Text('$e', style: const TextStyle(color: Colors.red));
     }

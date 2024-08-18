@@ -62,7 +62,7 @@ class __CodeSectionWidgetState extends State<_CodeSectionWidget> {
         ]
       ),
       Container(
-        decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
+        decoration: BoxDecoration(border: Border.all(color: borderColor)),
         child: TextField(
           controller: TextEditingController(text: content),
           onChanged: (newText) {

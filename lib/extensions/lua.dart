@@ -8,11 +8,12 @@ const int luaRegistryIndex = -10000;
 
 final LuaState luaState = _initializeLua();
 LuaState _initializeLua() {
-  final state = LuaState.newState();
-  state.openLibs();
-  state.doString('$lensesVariable = {}');
-  state.doString('$instancesVariable = {}');
-  return state;
+  final lua = LuaState.newState();
+  lua.openLibs();
+  lua.doFile('lua/ui.lua');
+  lua.doString('$lensesVariable = {}');
+  lua.doString('$instancesVariable = {}');
+  return lua;
 }
 
 

@@ -21,7 +21,7 @@ class _TextWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
+    decoration: BoxDecoration(border: Border.all(color: borderColor)),
     child: TextField(
       controller: TextEditingController(text: element.toText()),
       onChanged: (newText) {

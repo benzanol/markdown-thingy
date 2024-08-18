@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:lua_dardo/lua.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
+import 'package:notes/editor/note_editor.dart';
 import 'package:notes/extensions/lua_object.dart';
+
+
+const double luaUiGap = textPadding;
+const double luaUiTextSize = 16;
+const double luaUiRadius = 6;
 
 
 class InvalidLuaUiError extends Error {
@@ -30,11 +37,10 @@ abstract class LuaUi {
     if (type is! LuaString) throw InvalidLuaUiError('Ui table must have a type property: $obj');
 
     switch (type.value) {
-      case 'label': return LuaLabelUi(obj.listValues.firstOrNull?.display() ?? '');
       case 'field': return LuaTextFieldUi(obj.listValues.firstOrNull?.display() ?? '');
-      case 'button': return LuaButtonUi(
-        obj.listValues.firstOrNull?.display()
-        ?? (throw InvalidLuaUiError('Button must have a label: $obj'))
+      case 'label': return LuaLabelUi(
+        obj.listValues.firstOrNull?.display() ?? '',
+        theme: obj.value[LuaString('theme')]?.display(),
       );
 
       case 'column': return LuaColumnUi(obj.listValues.map(LuaUi._parse).toList());
@@ -52,51 +58,69 @@ abstract class LuaUi {
 }
 
 class LuaLabelUi extends LuaUi {
+  LuaLabelUi(this.text, {this.theme});
   final String text;
-  LuaLabelUi(this.text);
-
-  @override
-  Widget widget(onChange) => Text(text);
-}
-
-class LuaButtonUi extends LuaUi {
-  LuaButtonUi(this.label);
-  String label;
+  final String? theme;
 
   @override
   void performChange(LuaState lua) {
     lua.getField(-1, 'onPress');
-    // Call the function
     if (lua.isFunction(-1)) {
       lua.call(0, 0);
     }
   }
 
   @override
-  Widget widget(onChange) => ElevatedButton(
-    onPressed: () => onChange(this),
-    child: Text(label),
-  );
+  Widget widget(onChange) {
+    void onPress() => onChange(this);
+    const style = TextStyle(fontSize: luaUiTextSize);
+    return (
+      theme == 'button' ? ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xffeff2ff),
+          padding: const EdgeInsets.all(textPadding),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(luaUiRadius),
+            side: const BorderSide(
+              color: Color(0x771155bb), // Border color
+              width: 1.5, // Border width
+            ),
+          ),
+        ),
+        onPressed: onPress,
+        child: Text(text, style: style),
+      )
+      : theme == 'icon-button' ? IconButton(icon: Icon(MdiIcons.fromString(text)), onPressed: onPress)
+      : GestureDetector(onTap: onPress, child: (
+          theme == 'icon' ? Icon(MdiIcons.fromString(text))
+          : Text(text, style: style)
+        ),
+      )
+    );
+  }
 }
 
 class LuaTextFieldUi extends LuaUi {
-  LuaTextFieldUi(String init) : controller = TextEditingController(text: init);
-  final TextEditingController controller;
+  LuaTextFieldUi(this.text);
+  String text;
 
   @override
   void performChange(LuaState lua) {
     lua.getField(-1, 'onChange');
     // Call the function with the string argument
     if (lua.isFunction(-1)) {
-      lua.pushString(controller.text);
+      lua.pushString(text);
       lua.call(1, 0);
     }
   }
 
   @override
-  Widget widget(onChange) => TextField(
-    controller: controller,
-    onChanged: (_) => onChange(this),
+  Widget widget(onChange) => _LongLastingTextField(
+    text: text,
+    onChange: (newText) {
+      text = newText;
+      onChange(this);
+    },
   );
 }
 
@@ -115,7 +139,10 @@ class LuaColumnUi extends LuaUi {
   @override
   Widget widget(onChange) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
-    children: children.map((child) => child.widget(onChange)).toList(),
+    children: children.map((child) => Padding(
+        padding: EdgeInsets.only(bottom: child == children.last ? 0 : luaUiGap),
+        child: child.widget(onChange),
+    )).toList(),
   );
 }
 
@@ -134,7 +161,10 @@ class LuaRowUi extends LuaUi {
   @override
   Widget widget(onChange) => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
-    children: children.map((child) => child.widget(onChange)).toList()
+    children: children.map((child) => Padding(
+        padding: EdgeInsets.only(bottom: child == children.last ? 0 : luaUiGap),
+        child: child.widget(onChange),
+    )).toList()
   );
 }
 
@@ -154,8 +184,60 @@ class LuaTableUi extends LuaUi {
 
   @override
   Widget widget(onChange) => Table(
+    border: TableBorder.all(),
+    defaultColumnWidth: const IntrinsicColumnWidth(),
     children: rows.map((row) => TableRow(
-        children: row.map((cell) => cell.widget(onChange)).toList(),
+        children: row.map((cell) => TableCell(child: cell.widget(onChange))).toList(),
     )).toList()
   );
+}
+
+
+class _LongLastingTextField extends StatefulWidget {
+  const _LongLastingTextField({required this.text, required this.onChange});
+  final String text;
+  final Function(String) onChange;
+
+  @override
+  State<_LongLastingTextField> createState() => _LongLastingTextFieldState();
+}
+
+class _LongLastingTextFieldState extends State<_LongLastingTextField> {
+  late final textController = TextEditingController(text: widget.text);
+  late final originalField = TextField(
+    controller: textController,
+    onChanged: onChanged,
+    style: const TextStyle(fontSize: luaUiTextSize),
+    decoration: const InputDecoration(
+      border: OutlineInputBorder(
+        borderSide: BorderSide(color: borderColor),
+        borderRadius: BorderRadius.all(Radius.circular(luaUiRadius)),
+      ),
+      contentPadding: EdgeInsets.all(textPadding * 1.4),
+      isDense: true,
+    ),
+  );
+
+  void onChanged(String s) => widget.onChange(s);
+
+  @override
+  Widget build(BuildContext context) {
+    // If the ui function returned conflicting text, modify the field content
+    if (textController.text != widget.text) {
+      final cursorPosition = textController.selection.baseOffset;
+      textController.text = widget.text;
+      textController.selection = TextSelection.fromPosition(
+        TextPosition(offset: cursorPosition),
+      );
+    }
+    return Container(
+      alignment: Alignment.topLeft,
+      child: IntrinsicWidth(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 100),
+          child: originalField,
+        ),
+      ),
+    );
+  }
 }

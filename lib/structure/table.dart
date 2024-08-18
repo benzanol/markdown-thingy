@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:notes/components/hscroll.dart';
 import 'package:notes/structure/structure.dart';
 
 
@@ -46,8 +47,7 @@ class _TableWidget extends StatelessWidget {
   final Function() onUpdate;
 
   @override
-  Widget build(BuildContext context) {
-    final tableWidget = Table(
+  Widget build(BuildContext context) => Hscroll(child: Table(
       border: TableBorder.all(),
       defaultColumnWidth: const IntrinsicColumnWidth(),
       children: element._table.indexed.map((row) => TableRow(
@@ -67,19 +67,5 @@ class _TableWidget extends StatelessWidget {
               )
           )).toList(),
       )).toList(),
-    );
-
-    final scrollController = ScrollController();
-    const double scrollThickness = 5;
-    return Scrollbar(
-      thickness: scrollThickness,
-      thumbVisibility: true,
-      controller: scrollController,
-      child: SingleChildScrollView(
-        controller: scrollController,
-        scrollDirection: Axis.horizontal,
-        child: tableWidget,
-      ),
-    );
-  }
+  ));
 }
