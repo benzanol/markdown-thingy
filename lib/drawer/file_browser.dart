@@ -19,37 +19,28 @@ class FileBrowser extends StatefulWidget {
 
 class _FileBrowserState extends State<FileBrowser> {
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onLongPressStart: (details) async {
-      final pos = details.globalPosition;
-      final result = await showMenu(
-        context: context,
-        position: RelativeRect.fromLTRB(pos.dx, pos.dy, pos.dx, pos.dy),
-        items: _creationPopupButtons(context, widget.dir),
-      );
-      result?.call();
-    },
-    child: Container(
-      color: Colors.transparent,
-      child: Column(
-        mainAxisSize: MainAxisSize.max,
-        children: [
-          Text(
-            widget.dir.uri.pathSegments.lastWhere((s) => s.isNotEmpty),
-            style: const TextStyle(color: directoryColor, fontSize: 35),
-          ),
-          FileBrowserDirectory(dir: widget.dir, openFile: widget.openFile),
-        ],
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.max,
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Padding(
+        padding: const EdgeInsets.only(left: 10),
+        child: Text(
+          widget.dir.uri.pathSegments.lastWhere((s) => s.isNotEmpty),
+          style: const TextStyle(color: directoryColor, fontSize: 35),
+        ),
       ),
-    ),
+      FileBrowserDirectory(dir: widget.dir, openFile: widget.openFile),
+    ],
   );
 }
 
 
 class FileBrowserDirectory extends StatefulWidget {
-  const FileBrowserDirectory({super.key, required this.dir, this.openFile});
+  const FileBrowserDirectory({super.key, required this.dir, this.openFile, this.depth = 0});
   final Directory dir;
   final Function(File)? openFile;
+  final int depth;
 
   @override
   State<FileBrowserDirectory> createState() => _FileBrowserDirectoryState();
@@ -87,27 +78,27 @@ class _FileBrowserDirectoryState extends State<FileBrowserDirectory> {
     });
   }
 
-  void tapEntity(FileSystemEntity entity) {
-    if (entity is Directory && openDirs.contains(entity.path)) {
-      openDirs.remove(entity.path);
-    } else if (entity is Directory) {
-      openDirs.add(entity.path);
-    } else if (entity is File) {
-      widget.openFile?.call(entity);
-    }
-  }
-
   Widget _fileNameWidget(FileSystemEntity f) {
-    final nameWidget = GestureDetector(
-      onTap: () => setState(() => tapEntity(f)),
-      child: Text(
-        f.uri.pathSegments.lastWhere((seg) => seg.isNotEmpty),
-        maxLines: 1,
-        style: const TextStyle(fontSize: 20, height: 1.4),
-      ),
+    final nameWidget = Row(
+      mainAxisSize: MainAxisSize.max,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Icon(
+          f is Directory ? Icons.folder : Icons.insert_drive_file_outlined,
+          color: Theme.of(context).colorScheme.secondary,
+          size: 20,
+        ),
+        const SizedBox(width: 5),
+        Text(
+          f.uri.pathSegments.lastWhere((seg) => seg.isNotEmpty),
+          maxLines: 1,
+          style: const TextStyle(fontSize: 20, height: 1.4),
+        ),
+      ],
     );
 
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       // Create the popup menu
       onLongPressStart: (details) async {
         final pos = details.globalPosition;
@@ -121,19 +112,19 @@ class _FileBrowserDirectoryState extends State<FileBrowserDirectory> {
         );
         result?.call();
       },
+      onTap: () => setState(() {
+          if (f is Directory && openDirs.contains(f.path)) {
+            openDirs.remove(f.path);
+          } else if (f is Directory) {
+            openDirs.add(f.path);
+          } else if (f is File) {
+            widget.openFile?.call(f);
+          }
+      }),
 
-      child: Row(
-        mainAxisSize: MainAxisSize.max,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(
-            f is Directory ? Icons.folder : Icons.insert_drive_file_outlined,
-            color: Theme.of(context).colorScheme.secondary,
-            size: 20,
-          ),
-          const SizedBox(width: 5),
-          nameWidget,
-        ],
+      child: Padding(
+        padding: EdgeInsets.only(left: 10 + widget.depth * 10),
+        child: nameWidget,
       ),
     );
   }
@@ -143,23 +134,33 @@ class _FileBrowserDirectoryState extends State<FileBrowserDirectory> {
     final dirs = subDirs;
     final files = subFiles;
     if (dirs == null || files == null) return Container();
-    if (dirs.isEmpty && files.isEmpty) return const Text('');
 
     final rows = [...dirs, ...files].expand((f) => [
         _fileNameWidget(f),
         ...(!(f is Directory && openDirs.contains(f.path)) ? <Widget>[] : [
-            Padding(
-              padding: const EdgeInsets.only(left: 10),
-              child: FileBrowserDirectory(dir: f, openFile: widget.openFile)
-            ),
+            FileBrowserDirectory(dir: f, openFile: widget.openFile, depth: widget.depth + 1),
         ])
-    ]);
+    ]).toList();
 
-    return Container(
-      padding: const EdgeInsets.only(top: 3, bottom: 5),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: rows.toList()
+    if (rows.isEmpty) rows.add(Container(height: 10));
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onLongPressStart: (details) async {
+        final pos = details.globalPosition;
+        final result = await showMenu(
+          context: context,
+          position: RelativeRect.fromLTRB(pos.dx, pos.dy, pos.dx, pos.dy),
+          items: _creationPopupButtons(context, widget.dir),
+        );
+        result?.call();
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(top: 3, bottom: 5),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: rows,
+        ),
       ),
     );
   }

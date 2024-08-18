@@ -1,5 +1,11 @@
 import 'package:lua_dardo/lua.dart';
 
+
+List<LuaObject> parseStack(LuaState lua) {
+  final length = lua.getTop();
+  return List.generate(length, (idx) => LuaObject.parse(lua, index: idx - length));
+}
+
 abstract class LuaObject {
   dynamic get value;
   @override String toString() => value.toString();
@@ -14,31 +20,40 @@ abstract class LuaObject {
   @override
   int get hashCode => value.hashCode;
 
-  static LuaObject parse(LuaState lua) {
-    if (lua.isInteger(-1)) {
-      return LuaNumber(lua.toInteger(-1));
-    } else if (lua.isNumber(-1)) {
-      return LuaNumber(lua.toNumber(-1));
-    } else if (lua.isBoolean(-1)) {
-      return LuaBoolean(lua.toBoolean(-1));
-    } else if (lua.isTable(-1)) {
+  static LuaObject parse(LuaState lua, {int index = -1}) {
+    if (lua.isNil(index)) {
+      return LuaNil();
+    } else if (lua.isInteger(index)) {
+      return LuaNumber(lua.toInteger(index));
+    } else if (lua.isNumber(index)) {
+      return LuaNumber(lua.toNumber(index));
+    } else if (lua.isBoolean(index)) {
+      return LuaBoolean(lua.toBoolean(index));
+    } else if (lua.isTable(index)) {
       Map<LuaObject, LuaObject> table = {};
       // When lua iterates through tables, it expects the stack to look like [..., table, prevKey].
       // Start with a nil key to indicate that the iteration hasn't started
       lua.pushNil();
-      while (lua.next(-2)) {
+      while (lua.next(index - 1)) {
         LuaObject value = LuaObject.parse(lua);
         lua.pop(1);  // Pop the value, keep the key for the next iteration
         LuaObject key = LuaObject.parse(lua);
         table[key] = value;
       }
       return LuaTable(table);
-    }   else if (lua.isString(-1)) {
-      return LuaString(lua.toStr(-1)!);
+    }   else if (lua.isString(index)) {
+      return LuaString(lua.toStr(index)!);
     } else {
-      throw Exception('Unsupported Lua type');
+      return LuaOther(lua.type(index).toString());
     }
   }
+}
+
+class LuaNil extends LuaObject {
+  @override final value = null;
+
+  @override
+  String toString() => 'nil';
 }
 
 class LuaString extends LuaObject {
@@ -66,4 +81,13 @@ class LuaTable extends LuaObject {
   Iterable<LuaObject> get listValues => value.entries
   .where((e) => e.key is LuaNumber)
   .map((e) => e.value);
+}
+
+class LuaOther extends LuaObject {
+  LuaOther(this.type);
+  final String type;
+  @override final dynamic value = null;
+
+  @override
+  String toString() => '<$type>';
 }

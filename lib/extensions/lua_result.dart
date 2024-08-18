@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:notes/extensions/lua_object.dart';
 
 
 abstract class LuaResult {
@@ -7,7 +8,7 @@ abstract class LuaResult {
 
 class LuaSuccess extends LuaResult {
   LuaSuccess(this.value);
-  final Object value;
+  final LuaObject value;
 
   @override
   Widget widget() => Text(value.toString());

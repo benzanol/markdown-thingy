@@ -12,7 +12,12 @@ class NoteStructure {
   List<StructureElement> content;
   List<(String, NoteStructure)> headings;
 
-  NoteStructure? getHeading(String name) => headings.where((tup) => tup.$1 == name).firstOrNull?.$2;
+  NoteStructure? getHeading(String name, {bool noCase = false}) => (
+    headings.where((heading) => (
+        (noCase ? heading.$1.toLowerCase() : heading.$1)
+        == (noCase ? name.toLowerCase() : name)
+    )).firstOrNull?.$2
+  );
 
   String toText() {
     final buf = StringBuffer();

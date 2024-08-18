@@ -45,6 +45,20 @@ class NoteEditor extends StatelessWidget {
 }
 
 
+class _StructureElementBox extends StatelessWidget {
+  const _StructureElementBox(this.element, this.onUpdate);
+  final StructureElement element;
+  final Function() onUpdate;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.symmetric(vertical: vMargin),
+    color: Theme.of(context).colorScheme.surface,
+    child: element.widget(onUpdate)
+  );
+}
+
+
 abstract class _NoteEditorChild implements Widget {
   String toText();
 }
@@ -60,7 +74,7 @@ class _RawNoteEditor extends StatelessWidget implements _NoteEditorChild {
   String toText() => text.toText();
 
   @override
-  Widget build(BuildContext context) => text.widget(onUpdate);
+  Widget build(BuildContext context) => _StructureElementBox(text, onUpdate);
 }
 
 
@@ -85,11 +99,7 @@ class _StructureNoteEditorState extends State<_StructureNoteEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ...widget.structure.content.map((elem) => Container(
-            margin: const EdgeInsets.symmetric(vertical: vMargin),
-            color: Theme.of(context).colorScheme.surface,
-            child: elem.widget(widget.onUpdate)
-        )),
+        ...widget.structure.content.map((elem) => _StructureElementBox(elem, widget.onUpdate)),
         ...widget.structure.headings.expand((head) {
             final isFolded = foldedHeadings.contains(head.$1);
             final headWidget = GestureDetector(

@@ -1,11 +1,13 @@
 import 'package:notes/structure/code.dart';
+import 'package:notes/structure/lens.dart';
 import 'package:notes/structure/structure.dart';
 import 'package:notes/structure/table.dart';
 import 'package:notes/structure/text.dart';
 
 
-(int, Match)? _lineMatch(Iterable<String> lines, RegExp regexp) => (
+(int, Match)? _lineMatch(int start, Iterable<String> lines, RegExp regexp) => (
   lines.indexed
+  .skip(start)
   .map((line) {
       final match = regexp.matchAsPrefix(line.$2);
       return match == null ? null : (line.$1, match);
@@ -23,7 +25,7 @@ NoteStructure parseStructure(List<String> lines, {int level = 0}) {
   int contentStart = 0;
   Map<String, String> props = {};
   if (lines.isNotEmpty && propsStartRegexp.hasMatch(lines.first)) {
-    final propsEnd = _lineMatch(lines.skip(1), propsEndRegexp)?.$1;
+    final propsEnd = _lineMatch(1, lines, propsEndRegexp)?.$1;
     if (propsEnd != null) {
       contentStart = propsEnd + 1;
 
@@ -39,8 +41,8 @@ NoteStructure parseStructure(List<String> lines, {int level = 0}) {
   }
 
   // Find the first heading
-  (int, Match)? nextHeading = _lineMatch(lines.skip(contentStart), headingRegexp);
-  final contentEnd = nextHeading?.$1 ?? lines.length;
+  (int, Match)? nextHead = _lineMatch(contentStart, lines, headingRegexp);
+  final contentEnd = nextHead?.$1 ?? lines.length;
 
   // Parse the content
   final elements = <StructureElement>[];
@@ -48,6 +50,7 @@ NoteStructure parseStructure(List<String> lines, {int level = 0}) {
     final specialElement = (
       StructureTable.maybeParse(lines, line)
       ?? StructureCode.maybeParse(lines, line)
+      ?? StructureLens.maybeParse(lines, line)
     );
 
     if (specialElement == null) {
@@ -66,13 +69,14 @@ NoteStructure parseStructure(List<String> lines, {int level = 0}) {
 
   // Parse each heading section
   final headings = <(String, NoteStructure)>[];
-  while (nextHeading != null) {
-    final (prevHeadingLine, prevHeadingMatch) = nextHeading;
+  while (nextHead != null) {
+    final (prevHeadLine, prevHeadMatch) = nextHead;
 
-    nextHeading = _lineMatch(lines.skip(prevHeadingLine+1), headingRegexp);
-    final prevHeadingLines = lines.sublist(prevHeadingLine+1, nextHeading?.$1 ?? lines.length);
-    final headingContent = parseStructure(prevHeadingLines, level: level+1);
-    headings.add((prevHeadingMatch.group(1)!, headingContent));
+
+    nextHead = _lineMatch(prevHeadLine+1, lines, headingRegexp);
+    final prevHeadLines = lines.sublist(prevHeadLine+1, nextHead?.$1 ?? lines.length);
+    final prevHeadContent = parseStructure(prevHeadLines, level: level+1);
+    headings.add((prevHeadMatch.group(1)!, prevHeadContent));
   }
 
   return NoteStructure(props: props, content: elements, headings: headings);

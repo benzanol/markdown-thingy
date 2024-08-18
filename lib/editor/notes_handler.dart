@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:notes/drawer/left_drawer.dart';
 import 'package:notes/editor/note_editor.dart';
 import 'package:notes/editor/state.dart';
+import 'package:notes/extensions/lenses.dart';
 
 
 class NoteHandler extends StatefulWidget {
@@ -19,45 +20,30 @@ class NoteHandler extends StatefulWidget {
 class _NoteHandlerState extends State<NoteHandler> {
   _NoteHandlerState();
 
+  bool ready = false;
   bool raw = false;
-  File? noteFile;
+  late File note = widget.state.repoFile('index.md');
 
   @override
   void initState() {
     super.initState();
 
-    final indexFile = widget.state.repoFile('index.md');
-    if (indexFile.existsSync()) {
-      setState(() => noteFile = indexFile);
-    }
+    // Start initialize lenses
+    loadLenses(widget.directory).then((_) => setState(() => ready = true));
   }
 
-  Widget leftDrawer() => LeftDrawer(
+  Widget leftDrawer(BuildContext context) => LeftDrawer(
     dir: widget.directory,
-    openFile: (file) => setState(() => noteFile = file),
+    openFile: (file) {
+      // Close the drawer
+      Navigator.pop(context);
+      setState(() => note = file);
+    },
   );
 
   @override
   Widget build(BuildContext context) {
-    final note = noteFile;
-    if (note == null) {
-      final controller = TextEditingController();
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Do something'),
-        ),
-        drawer: leftDrawer(),
-        body: Column(
-          children: [
-            TextField(controller: controller),
-            ElevatedButton(
-              onPressed: () => setState(() => noteFile = File(controller.text)),
-              child: const Text('Open'),
-            )
-          ],
-        ),
-      );
-    }
+    if (!ready) return const Text('Loading');
 
     return Scaffold(
       appBar: AppBar(
@@ -70,7 +56,7 @@ class _NoteHandlerState extends State<NoteHandler> {
           ]),
         ],
       ),
-      drawer: leftDrawer(),
+      drawer: leftDrawer(context),
       body: FutureBuilder(
         future: widget.state.getContents(note),
         builder: (context, snapshot) {

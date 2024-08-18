@@ -1,28 +1,34 @@
 import 'package:lua_dardo/lua.dart';
+import 'package:notes/extensions/lenses.dart';
 import 'package:notes/extensions/lua_object.dart';
 import 'package:notes/extensions/lua_result.dart';
-import 'package:notes/extensions/lua_ui.dart';
 
 
-const String luaVariable = 'output';
-final LuaState _luaState = createState();
+const int luaRegistryIndex = -10000;
 
-LuaState createState() {
+final LuaState luaState = _initializeLua();
+LuaState _initializeLua() {
   final state = LuaState.newState();
   state.openLibs();
+  state.doString('$lensesVariable = {}');
+  state.doString('$instancesVariable = {}');
   return state;
 }
 
-LuaResult executeLua(String code) {
+
+T luaEval<T>(T Function(LuaState state) fn, {int args = 0}) {
   try {
-    _luaState.doString('$luaVariable = nil');
+    luaState.call(args, 1);
+    return fn(luaState);
+  } finally {
+    luaState.setTop(0);
+  }
+}
 
-    _luaState.doString(code);
-    final result = LuaUi.parse(LuaObject.parse(_luaState));
-    _luaState.pop(1);  // Remove the result from the stack
-
-    return LuaSuccess(result);
-
+LuaResult luaEvalToResult(String code) {
+  try {
+    luaState.loadString(code);
+    return luaEval((state) => LuaSuccess(LuaObject.parse(state)));
   } catch (e) {
     return LuaFailure(e.toString());
   }

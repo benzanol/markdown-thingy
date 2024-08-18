@@ -6,9 +6,9 @@ import 'package:notes/structure/structure.dart';
 
 
 class StructureCode extends StructureElement {
-  StructureCode(this._content, {required String language}) : _language = language;
-  String _content;
-  final String _language;
+  StructureCode(this.content, {required this.language});
+  String content;
+  final String language;
 
   static (StructureCode, int)? maybeParse(List<String> lines, int line) {
     if (!lines[line].startsWith('```')) return null;
@@ -23,7 +23,7 @@ class StructureCode extends StructureElement {
   }
 
   @override
-  String toText() => '```$_language\n$_content\n```';
+  String toText() => '```$language\n$content\n```';
 
   @override
   Widget widget(Function() onUpdate) => _CodeSectionWidget(this, onUpdate);
@@ -42,8 +42,8 @@ class _CodeSectionWidget extends StatefulWidget {
 class __CodeSectionWidgetState extends State<_CodeSectionWidget> {
   __CodeSectionWidgetState();
 
-  String get language => widget.element._language;
-  String get content => widget.element._content;
+  String get language => widget.element.language;
+  String get content => widget.element.content;
 
   LuaResult? result;
 
@@ -57,7 +57,7 @@ class __CodeSectionWidgetState extends State<_CodeSectionWidget> {
           Text(language),
           language != 'lua' ? Container() : IconButton(
             icon: const Icon(Icons.play_arrow),
-            onPressed: () => setState(() => result = executeLua(content)),
+            onPressed: () => setState(() => result = luaEvalToResult(content)),
           ),
         ]
       ),
@@ -66,7 +66,7 @@ class __CodeSectionWidgetState extends State<_CodeSectionWidget> {
         child: TextField(
           controller: TextEditingController(text: content),
           onChanged: (newText) {
-            widget.element._content = newText;
+            widget.element.content = newText;
             widget.onUpdate();
           },
 
