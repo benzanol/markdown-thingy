@@ -12,6 +12,9 @@ class LuaSuccess extends LuaResult {
 
   @override
   Widget widget() => Text(value.toString());
+
+  @override
+  String toString() => 'LuaSuccess($value)';
 }
 
 class LuaFailure extends LuaResult {
@@ -20,4 +23,7 @@ class LuaFailure extends LuaResult {
 
   @override
   Widget widget() => Text(error, style: const TextStyle(color: Colors.red));
+
+  @override
+  String toString() => 'LuaFailure($error)';
 }

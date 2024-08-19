@@ -19,19 +19,29 @@ class FileBrowser extends StatefulWidget {
 
 class _FileBrowserState extends State<FileBrowser> {
   @override
-  Widget build(BuildContext context) => Column(
-    mainAxisSize: MainAxisSize.max,
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Padding(
-        padding: const EdgeInsets.only(left: 10),
-        child: Text(
-          widget.dir.uri.pathSegments.lastWhere((s) => s.isNotEmpty),
-          style: const TextStyle(color: directoryColor, fontSize: 35),
+  Widget build(BuildContext context) => GestureDetector(
+    behavior: HitTestBehavior.opaque,
+    onLongPressStart: (details) async {
+      final pos = details.globalPosition;
+      final result = await showMenu(
+        context: context,
+        position: RelativeRect.fromLTRB(pos.dx, pos.dy, pos.dx, pos.dy),
+        items: _creationPopupButtons(context, widget.dir),
+      );
+      result?.call();
+    },
+    child: ListView(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 10),
+          child: Text(
+            fileName(widget.dir),
+            style: const TextStyle(color: directoryColor, fontSize: 35),
+          ),
         ),
-      ),
-      FileBrowserDirectory(dir: widget.dir, openFile: widget.openFile),
-    ],
+        FileBrowserDirectory(dir: widget.dir, openFile: widget.openFile),
+      ],
+    ),
   );
 }
 
@@ -90,7 +100,7 @@ class _FileBrowserDirectoryState extends State<FileBrowserDirectory> {
         ),
         const SizedBox(width: 5),
         Text(
-          f.uri.pathSegments.lastWhere((seg) => seg.isNotEmpty),
+          fileName(f),
           maxLines: 1,
           style: const TextStyle(fontSize: 20, height: 1.4),
         ),
@@ -107,6 +117,7 @@ class _FileBrowserDirectoryState extends State<FileBrowserDirectory> {
           position: RelativeRect.fromLTRB(pos.dx, pos.dy, pos.dx, pos.dy),
           items: <PopupMenuItem<Function()>>[
             ..._creationPopupButtons(context, f is Directory ? f : widget.dir),
+            PopupMenuItem(value: () => renameFile(context, f), child: const Text('Rename')),
             PopupMenuItem(value: () => promptedDelete(context, f), child: const Text('Delete')),
           ],
         );

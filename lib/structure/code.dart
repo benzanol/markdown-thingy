@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:notes/editor/lua_state.dart';
 import 'package:notes/editor/note_editor.dart';
-import 'package:notes/extensions/lua.dart';
 import 'package:notes/extensions/lua_result.dart';
+import 'package:notes/extensions/lua_utils.dart';
 import 'package:notes/structure/structure.dart';
 
 
@@ -9,6 +10,9 @@ class StructureCode extends StructureElement {
   StructureCode(this.content, {required this.language});
   String content;
   final String language;
+
+  @override
+  dynamic toJson() => {'type': 'code', 'content': content, 'language': language};
 
   static (StructureCode, int)? maybeParse(List<String> lines, int line) {
     if (!lines[line].startsWith('```')) return null;
@@ -57,7 +61,9 @@ class __CodeSectionWidgetState extends State<_CodeSectionWidget> {
           Text(language),
           language != 'lua' ? Container() : IconButton(
             icon: const Icon(Icons.play_arrow),
-            onPressed: () => setState(() => result = luaExecuteCode(content)),
+            onPressed: () => setState(() {
+                result = luaExecuteCode(getGlobalLuaState(), content);
+            }),
           ),
         ]
       ),

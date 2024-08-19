@@ -8,6 +8,9 @@ class StructureText extends StructureElement {
   List<String> lines;
 
   @override
+  dynamic toJson() => {'type': 'text', 'text': lines.join('\n')};
+
+  @override
   String toText() => lines.join('\n');
 
   @override

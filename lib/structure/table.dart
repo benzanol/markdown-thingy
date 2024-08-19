@@ -9,6 +9,9 @@ class StructureTable extends StructureElement {
   StructureTable(this._table);
   final List<List<String>> _table;
 
+  @override
+  dynamic toJson() => {'type': 'table', 'rows': _table};
+
   static (StructureTable, int)? maybeParse(List<String> lines, int line) {
     int nextLine = line;
     while (nextLine < lines.length && lines[nextLine].startsWith('|')) {

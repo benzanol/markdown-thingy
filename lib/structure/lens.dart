@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:lua_dardo/lua.dart';
 import 'package:notes/components/hscroll.dart';
+import 'package:notes/editor/lua_state.dart';
 import 'package:notes/editor/note_editor.dart';
 import 'package:notes/extensions/lenses.dart';
-import 'package:notes/extensions/lua.dart';
-import 'package:notes/extensions/lua_ui.dart';
+import 'package:notes/extensions/lua_utils.dart';
+import 'package:notes/lua/lua_ui.dart';
 import 'package:notes/structure/structure.dart';
 
 
@@ -12,12 +14,15 @@ final RegExp lensEndRegexp = RegExp(r'^#\+end_lens$');
 
 
 abstract class StructureLens extends StructureElement {
-  StructureLens({required this.lens, required this.init});
+  StructureLens({required this.lens, required this.text});
   final LensExtension lens;
-  final String init;
+  final String text;
+
+  @override
+  dynamic toJson() => {'type': 'lens', 'dir': lens.ext, 'name': lens.name, 'text': text};
 
   String formatContent(String content) => (
-    '#+begin_lens ${lens.dir}/${lens.name}\n$content\n#+end_lens'
+    '#+begin_lens ${lens.ext}/${lens.name}\n$content\n#+end_lens'
   );
 
   static (StructureLens, int)? maybeParse(List<String> lines, int line) {
@@ -33,9 +38,13 @@ abstract class StructureLens extends StructureElement {
     final content = lines.getRange(line + 1, endLine.$1).join('\n');
     final nextLine = endLine.$1 + 1;
     try {
-      return (StructureSuccessfulLens.generate(lens: lens, init: content), nextLine);
+      return (StructureSuccessfulLens.generate(
+          lua: getGlobalLuaState(),
+          lens: lens,
+          text: content,
+      ), nextLine);
     } catch (e) {
-      return (StructureFailedLens(lens: lens, init: content, error: '$e'), nextLine);
+      return (StructureFailedLens(lens: lens, text: content, error: '$e'), nextLine);
     }
   }
 
@@ -52,11 +61,11 @@ abstract class StructureLens extends StructureElement {
 
 
 class StructureFailedLens extends StructureLens {
-  StructureFailedLens({required super.lens, required super.init, required this.error});
+  StructureFailedLens({required super.lens, required super.text, required this.error});
   final String error;
 
   @override
-  String toText() => formatContent(init);
+  String toText() => formatContent(text);
 
   @override
   Widget childWidget(Function() onUpdate) => (
@@ -66,16 +75,18 @@ class StructureFailedLens extends StructureLens {
 
 
 class StructureSuccessfulLens extends StructureLens {
-  StructureSuccessfulLens.generate({required super.lens, required super.init})
-  : _instanceId = lens.generateState(init);
+  StructureSuccessfulLens.generate({required super.lens, required super.text, required LuaState lua})
+  : _lua = lua, _instanceId = lens.generateState(lua, text);
+
+  final LuaState _lua;
   final int _instanceId;
 
   @override
   String toText() {
     try {
-      return formatContent(lens.generateText(_instanceId));
+      return formatContent(lens.generateText(_lua, _instanceId));
     } catch (e) {
-      return formatContent(init);
+      return formatContent(text);
     }
   }
 
@@ -95,21 +106,24 @@ class _SuccessfulLensWidget extends StatefulWidget {
 class __SuccessfulLensWidgetState extends State<_SuccessfulLensWidget> {
   __SuccessfulLensWidgetState();
 
+  LuaState get _lua => widget.lensElem._lua;
+
   void performChange(LuaUi component) {
-    luaState.setTop(0);
+    _lua.setTop(0);
 
     // Load the lua ui component into the stack
-    luaLoadTableEntry(instancesVariable, [widget.lensElem._instanceId.toString(), instanceUiField]);
+    final instanceId = widget.lensElem._instanceId.toString();
+    luaPushTableEntry(_lua, lensesVariable, [instanceId, lensesUiField]);
     for (final index in component.path) {
-      luaState.pushInteger(index + 1); // Lua is one indexed
-      luaState.getTable(-2);
+      _lua.pushInteger(index + 1); // Lua is one indexed
+      _lua.getTable(-2);
       // Remove the old table
-      luaState.insert(-2);
-      luaState.pop(1);
+      _lua.insert(-2);
+      _lua.pop(1);
     }
 
     // Call the component specific change code
-    component.performChange(luaState);
+    component.performChange(_lua);
 
     // Redisplay
     setState(() {});
@@ -119,7 +133,7 @@ class __SuccessfulLensWidgetState extends State<_SuccessfulLensWidget> {
   Widget build(BuildContext context) {
     try {
       return Hscroll(
-        child: widget.lensElem.lens.generateUi(widget.lensElem._instanceId).widget((component) {
+        child: widget.lensElem.lens.generateUi(_lua, widget.lensElem._instanceId).widget((component) {
             performChange(component);
             widget.onUpdate();
         }),

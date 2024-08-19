@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:notes/structure/parse_structure.dart';
 import 'package:notes/structure/structure.dart';
 import 'package:notes/structure/text.dart';
 
@@ -21,7 +20,7 @@ class NoteEditor extends StatelessWidget {
   late final _NoteEditorChild _childEditor = (
     raw
     ? _RawNoteEditor(init: init, onUpdate: _update)
-    : _StructureNoteEditor(structure: parseStructure(init.split('\n')), onUpdate: _update)
+    : _StructureNoteEditor(structure: Structure.parse(init), onUpdate: _update)
   );
   String toText() => _childEditor.toText();
 
@@ -83,7 +82,7 @@ class _StructureNoteEditor extends StatefulWidget implements _NoteEditorChild {
   const _StructureNoteEditor({required this.structure, required this.onUpdate});
 
   final Function() onUpdate;
-  final NoteStructure structure;
+  final Structure structure;
 
   @override
   String toText() => structure.toText();

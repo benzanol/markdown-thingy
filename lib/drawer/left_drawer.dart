@@ -16,7 +16,6 @@ class LeftDrawer extends StatelessWidget {
       width: MediaQuery.of(context).size.width * 0.6,
       child: Container(
         alignment: Alignment.topLeft,
-        padding: const EdgeInsets.symmetric(vertical: 10),
         child: FileBrowser(dir: dir, openFile: openFile),
       ),
     );

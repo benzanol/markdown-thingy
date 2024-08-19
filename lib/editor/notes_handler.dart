@@ -2,9 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:notes/drawer/left_drawer.dart';
+import 'package:notes/editor/lua_state.dart';
 import 'package:notes/editor/note_editor.dart';
 import 'package:notes/editor/state.dart';
-import 'package:notes/extensions/lenses.dart';
+import 'package:notes/extensions/load_extensions.dart';
 
 
 class NoteHandler extends StatefulWidget {
@@ -29,7 +30,7 @@ class _NoteHandlerState extends State<NoteHandler> {
     super.initState();
 
     // Start initialize lenses
-    loadLenses(widget.directory).then((_) => setState(() => ready = true));
+    loadExtensions(getGlobalLuaState(), widget.directory).then((_) => setState(() => ready = true));
   }
 
   Widget leftDrawer(BuildContext context) => LeftDrawer(
