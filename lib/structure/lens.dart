@@ -49,13 +49,13 @@ abstract class StructureLens extends StructureElement {
   }
 
 
-  Widget childWidget(Function() onUpdate);
+  Widget childWidget(NoteEditor note);
   @override
-  Widget widget(Function() onUpdate) => Container(
+  Widget widget(NoteEditor note) => Container(
     decoration: BoxDecoration(border: Border.all(color: borderColor)),
     padding: const EdgeInsets.all(textPadding),
     alignment: Alignment.topLeft,
-    child: childWidget(onUpdate),
+    child: childWidget(note),
   );
 }
 
@@ -68,7 +68,7 @@ class StructureFailedLens extends StructureLens {
   String toText() => formatContent(text);
 
   @override
-  Widget childWidget(Function() onUpdate) => (
+  Widget childWidget(NoteEditor note) => (
     Text(error, style: const TextStyle(color: Colors.red))
   );
 }
@@ -91,13 +91,13 @@ class StructureSuccessfulLens extends StructureLens {
   }
 
   @override
-  Widget childWidget(Function() onUpdate) => _SuccessfulLensWidget(this, onUpdate);
+  Widget childWidget(NoteEditor note) => _SuccessfulLensWidget(note, this);
 }
 
 class _SuccessfulLensWidget extends StatefulWidget {
-  const _SuccessfulLensWidget(this.lensElem, this.onUpdate);
+  const _SuccessfulLensWidget(this.note, this.lensElem);
+  final NoteEditor note;
   final StructureSuccessfulLens lensElem;
-  final Function() onUpdate;
 
   @override
   State<_SuccessfulLensWidget> createState() => __SuccessfulLensWidgetState();
@@ -135,7 +135,7 @@ class __SuccessfulLensWidgetState extends State<_SuccessfulLensWidget> {
       return Hscroll(
         child: widget.lensElem.lens.generateUi(_lua, widget.lensElem._instanceId).widget((component) {
             performChange(component);
-            widget.onUpdate();
+            widget.note.update();
         }),
       );
     } catch (e) {

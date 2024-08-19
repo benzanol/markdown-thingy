@@ -28,12 +28,8 @@ final pushFunctions = <String, int Function(LuaState)> {
 // Functions which return their output
 final returnFunctions = <String, dynamic Function(LuaState)>{
   'loadfile': (lua) {
-    final currentDir = luaCurrentFile?.parent;
-    if (currentDir == null) throw 'loadfile can only be used in extensions';
-
     ensureArgCount(lua, 1);
     final relativePath = ensureLuaString(LuaObject.parse(lua));
-    final fromRepoRoot = currentDir.uri.resolve(relativePath);
 
     // Check the file type
     final isMarkdown =
@@ -42,8 +38,9 @@ final returnFunctions = <String, dynamic Function(LuaState)>{
     : (throw 'Can only load a lua (.lua) or markdown (.md) file');
 
     // Check if the file exists
-    final file = File.fromUri(repoRootDirectory.uri.resolveUri(fromRepoRoot));
-    if (!file.existsSync()) throw 'File $fromRepoRoot does not exist';
+    final currentDir = luaCurrentFile?.parent ?? repoRootDirectory;
+    final file = File.fromUri(currentDir.uri.resolve(relativePath));
+    if (!file.existsSync()) throw 'File $relativePath does not exist';
 
     // Parse the code from the file
     final contents = file.readAsStringSync();
@@ -51,7 +48,7 @@ final returnFunctions = <String, dynamic Function(LuaState)>{
       Structure.parse(contents).getElements<StructureCode>().map((c) => c.content).join('\n')
     );
 
-    final result = luaExecuteCode(lua, code, file);
+    final result = luaExecuteFile(lua, code, file);
     if (result is LuaFailure) throw result.error;
     if (result is LuaSuccess) return result.value;
   },

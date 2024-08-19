@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:notes/editor/note_editor.dart';
 import 'package:notes/lua/lua_result.dart';
 import 'package:notes/lua/lua_state.dart';
-import 'package:notes/lua/utils.dart';
 import 'package:notes/structure/structure.dart';
 
 
@@ -30,14 +29,14 @@ class StructureCode extends StructureElement {
   String toText() => '```$language\n$content\n```';
 
   @override
-  Widget widget(Function() onUpdate) => _CodeSectionWidget(this, onUpdate);
+  Widget widget(NoteEditor note) => _CodeSectionWidget(note, this);
 }
 
 
 class _CodeSectionWidget extends StatefulWidget {
-  const _CodeSectionWidget(this.element, this.onUpdate);
+  const _CodeSectionWidget(this.note, this.element);
+  final NoteEditor note;
   final StructureCode element;
-  final Function() onUpdate;
 
   @override
   State<_CodeSectionWidget> createState() => __CodeSectionWidgetState();
@@ -62,7 +61,7 @@ class __CodeSectionWidgetState extends State<_CodeSectionWidget> {
           language != 'lua' ? Container() : IconButton(
             icon: const Icon(Icons.play_arrow),
             onPressed: () => setState(() {
-                result = luaExecuteCode(getGlobalLuaState(), content, null);
+                result = luaExecuteFile(getGlobalLuaState(), content, widget.note.file);
             }),
           ),
         ]
@@ -73,7 +72,7 @@ class __CodeSectionWidgetState extends State<_CodeSectionWidget> {
           controller: TextEditingController(text: content),
           onChanged: (newText) {
             widget.element.content = newText;
-            widget.onUpdate();
+            widget.note.update();
           },
 
           maxLines: null,

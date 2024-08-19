@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:notes/editor/note_editor.dart';
 import 'package:notes/lua/to_lua.dart';
 import 'package:notes/structure/code.dart';
 import 'package:notes/structure/lens.dart';
@@ -7,7 +8,7 @@ import 'package:notes/structure/text.dart';
 
 
 abstract class StructureElement implements ToJson {
-  Widget widget(Function() onUpdate);
+  Widget widget(NoteEditor note);
   String toText();
 }
 

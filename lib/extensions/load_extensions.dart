@@ -29,7 +29,7 @@ void runExtensionCode(LuaState lua, Directory extDir, String code) {
   final globalsBefore = luaGlobals(lua);
 
   loadingExtension = extDir;
-  final result = luaExecuteCode(lua, code, indexFile);
+  final result = luaExecuteFile(lua, code, indexFile);
   loadingExtension = null;
 
   if (result is LuaFailure) {

@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:notes/components/hscroll.dart';
+import 'package:notes/editor/note_editor.dart';
 import 'package:notes/structure/structure.dart';
 
 
@@ -40,14 +41,14 @@ class StructureTable extends StructureElement {
   String toText() => _table.map((line) => '| ${line.join(" | ")} |').join('\n');
 
   @override
-  Widget widget(Function() onUpdate) => _TableWidget(this, onUpdate);
+  Widget widget(NoteEditor note) => _TableWidget(note, this);
 }
 
 
 class _TableWidget extends StatelessWidget {
-  const _TableWidget(this.element, this.onUpdate);
+  const _TableWidget(this.note, this.element);
+  final NoteEditor note;
   final StructureTable element;
-  final Function() onUpdate;
 
   @override
   Widget build(BuildContext context) => Hscroll(child: Table(
@@ -59,7 +60,7 @@ class _TableWidget extends StatelessWidget {
                 controller: TextEditingController(text: cell.$2),
                 onChanged: (content) {
                   element._table[row.$1][cell.$1] = content;
-                  onUpdate();
+                  note.update();
                 },
                 maxLines: null,
                 decoration: const InputDecoration(

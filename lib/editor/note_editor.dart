@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:notes/structure/structure.dart';
 import 'package:notes/structure/text.dart';
@@ -10,19 +12,20 @@ const Color borderColor = Colors.grey;
 
 
 class NoteEditor extends StatelessWidget {
-  NoteEditor({super.key, required this.init, this.raw = false, this.onUpdate});
+  NoteEditor({super.key, required this.file, required this.init, this.isRaw = false, this.onUpdate});
 
+  final File file;
   final String init;
-  final bool raw;
+  final bool isRaw;
   final Function(NoteEditor)? onUpdate;
 
-  void _update() => onUpdate?.call(this);
-  late final _NoteEditorChild _childEditor = (
-    raw
-    ? _RawNoteEditor(init: init, onUpdate: _update)
-    : _StructureNoteEditor(structure: Structure.parse(init), onUpdate: _update)
+  late final _NoteEditorWidget _childEditor = (
+    isRaw ? _RawNoteWidget(this, init) : _StructureNoteWidget(this, Structure.parse(init))
   );
+
   String toText() => _childEditor.toText();
+
+  void update() => onUpdate?.call(this);
 
   @override
   Widget build(BuildContext context) {
@@ -45,53 +48,54 @@ class NoteEditor extends StatelessWidget {
 }
 
 
-class _StructureElementBox extends StatelessWidget {
-  const _StructureElementBox(this.element, this.onUpdate);
+class _ElementBoxWidget extends StatelessWidget {
+  const _ElementBoxWidget(this.note, this.element);
+  final NoteEditor note;
   final StructureElement element;
-  final Function() onUpdate;
 
   @override
   Widget build(BuildContext context) => Container(
     margin: const EdgeInsets.symmetric(vertical: vMargin),
     color: Theme.of(context).colorScheme.surface,
-    child: element.widget(onUpdate)
+    child: element.widget(note),
   );
 }
 
 
-abstract class _NoteEditorChild implements Widget {
+abstract class _NoteEditorWidget implements Widget {
   String toText();
 }
 
-class _RawNoteEditor extends StatelessWidget implements _NoteEditorChild {
-  _RawNoteEditor({required String init, required this.onUpdate})
+
+class _RawNoteWidget extends StatelessWidget implements _NoteEditorWidget {
+  _RawNoteWidget(this.note, String init)
   : text = StructureText(init.split('\n'));
 
-  final Function() onUpdate;
+  final NoteEditor note;
   final StructureText text;
 
   @override
   String toText() => text.toText();
 
   @override
-  Widget build(BuildContext context) => _StructureElementBox(text, onUpdate);
+  Widget build(BuildContext context) => _ElementBoxWidget(note, text);
 }
 
 
-class _StructureNoteEditor extends StatefulWidget implements _NoteEditorChild {
-  const _StructureNoteEditor({required this.structure, required this.onUpdate});
+class _StructureNoteWidget extends StatefulWidget implements _NoteEditorWidget {
+  const _StructureNoteWidget(this.note, this.structure);
 
-  final Function() onUpdate;
   final Structure structure;
+  final NoteEditor note;
 
   @override
   String toText() => structure.toText();
 
   @override
-  State<_StructureNoteEditor> createState() => _StructureNoteEditorState();
+  State<_StructureNoteWidget> createState() => _StructureNoteWidgetState();
 }
 
-class _StructureNoteEditorState extends State<_StructureNoteEditor> {
+class _StructureNoteWidgetState extends State<_StructureNoteWidget> {
   Set<String> foldedHeadings = {};
 
   @override
@@ -99,7 +103,7 @@ class _StructureNoteEditorState extends State<_StructureNoteEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ...widget.structure.content.map((elem) => _StructureElementBox(elem, widget.onUpdate)),
+        ...widget.structure.content.map((elem) => _ElementBoxWidget(widget.note, elem)),
         ...widget.structure.headings.expand((head) {
             final isFolded = foldedHeadings.contains(head.$1);
             final headWidget = GestureDetector(
@@ -109,7 +113,7 @@ class _StructureNoteEditorState extends State<_StructureNoteEditor> {
               child: Text(head.$1, style: const TextStyle(fontSize: 30)),
             );
             if (isFolded) return [headWidget];
-            final contentsWidget = _StructureNoteEditor(structure: head.$2, onUpdate: widget.onUpdate);
+            final contentsWidget = _StructureNoteWidget(widget.note, head.$2);
             return [headWidget, contentsWidget];
         }),
       ],

@@ -14,13 +14,13 @@ class StructureText extends StructureElement {
   String toText() => lines.join('\n');
 
   @override
-  Widget widget(Function() onUpdate) => _TextWidget(this, onUpdate);
+  Widget widget(NoteEditor note) => _TextWidget(note, this);
 }
 
 class _TextWidget extends StatelessWidget {
-  const _TextWidget(this.element, this.onUpdate);
+  const _TextWidget(this.note ,this.element);
+  final NoteEditor note;
   final StructureText element;
-  final Function() onUpdate;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -29,7 +29,7 @@ class _TextWidget extends StatelessWidget {
       controller: TextEditingController(text: element.toText()),
       onChanged: (newText) {
         element.lines = newText.split('\n');
-        onUpdate();
+        note.update();
       },
 
       maxLines: null,

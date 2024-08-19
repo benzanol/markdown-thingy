@@ -1,25 +1,5 @@
-import 'dart:io';
-
 import 'package:lua_dardo/lua.dart';
 import 'package:notes/lua/lua_object.dart';
-import 'package:notes/lua/lua_result.dart';
-
-
-File? luaCurrentFile;
-LuaResult luaExecuteCode(LuaState lua, String code, File? file) {
-  final prevFile = luaCurrentFile;
-  luaCurrentFile = file;
-  try {
-    lua.setTop(0);
-    lua.loadString(code);
-    lua.call(0, 1);
-    return LuaSuccess(LuaObject.parse(lua));
-  } catch (e) {
-    return LuaFailure(e.toString());
-  } finally {
-    luaCurrentFile = prevFile;
-  }
-}
 
 
 void luaPushTableEntry(LuaState lua, String variable, List<String> fields) {
