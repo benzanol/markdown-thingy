@@ -1,7 +1,7 @@
 import 'package:lua_dardo/lua.dart';
 import 'package:notes/extensions/lenses.dart';
 import 'package:notes/extensions/load_extensions.dart';
-import 'package:notes/extensions/lua_functions.dart';
+import 'package:notes/lua/functions.dart';
 
 
 final LuaState _luaState = initializeLuaState();
@@ -12,9 +12,11 @@ LuaState initializeLuaState() {
 
   // Load lua libraries
   lua.openLibs();
-  // Remove access to os and io libs
+
+  // Remove access to the filesystem
   lua.doString('os = nil');
   lua.doString('io = nil');
+  lua.doString('loadfile = nil');
 
   // Register dart functions
   registerLuaFunctions(lua, 'Lib');

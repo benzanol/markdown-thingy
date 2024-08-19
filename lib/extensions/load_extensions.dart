@@ -2,10 +2,9 @@ import 'dart:io';
 
 import 'package:lua_dardo/lua.dart';
 import 'package:notes/drawer/file_ops.dart';
-import 'package:notes/extensions/lenses.dart';
-import 'package:notes/extensions/lua_object.dart';
-import 'package:notes/extensions/lua_result.dart';
-import 'package:notes/extensions/lua_utils.dart';
+import 'package:notes/lua/lua_object.dart';
+import 'package:notes/lua/lua_result.dart';
+import 'package:notes/lua/utils.dart';
 import 'package:notes/structure/code.dart';
 import 'package:notes/structure/structure.dart';
 
@@ -20,22 +19,22 @@ const String extsButtonsField = 'buttons';
 
 // The extension currently being loaded
 // This is used for lua functions like deflens and defbutton
-String? loadingExtension;
+Directory? loadingExtension;
 
 
-List<LensExtension> lensExtensions = [];
+void runExtensionCode(LuaState lua, Directory extDir, String code) {
+  final extName = fileName(extDir);
+  final indexFile = File.fromUri(extDir.uri.resolve(extIndexFileName));
 
-
-void loadExtensionCode(LuaState lua, String ext, String code) {
   final globalsBefore = luaGlobals(lua);
 
-  loadingExtension = ext;
-  final result = luaExecuteCode(lua, code);
+  loadingExtension = extDir;
+  final result = luaExecuteCode(lua, code, indexFile);
   loadingExtension = null;
 
   if (result is LuaFailure) {
-  // ignore: avoid_print
-    print('Error loading $ext: ${result.error}');
+    // ignore: avoid_print
+    print('Error loading $extName: ${result.error}');
   }
 
   // Figure out what new globals the extension defined
@@ -53,7 +52,7 @@ void loadExtensionCode(LuaState lua, String ext, String code) {
   }
 
   // Put the new table into extensions[name][scope]
-  luaSetTableEntry(lua, extsVariable, [ext, extsScopeField]);
+  luaSetTableEntry(lua, extsVariable, [extName, extsScopeField]);
 }
 
 Future<void> loadExtensions(LuaState lua, Directory rootDir) async {
@@ -69,17 +68,9 @@ Future<void> loadExtensions(LuaState lua, Directory rootDir) async {
 
   for (final maybeExt in maybeExtensions) {
     if (maybeExt == null) return;
-    final (dir, content) = maybeExt;
-    final extName = fileName(dir);
+    final (extDir, content) = maybeExt;
     final codeBlocks = Structure.parse(content).getElements<StructureCode>();
 
-    loadExtensionCode(lua, extName, codeBlocks.map((c) => c.content).join('\n'));
+    runExtensionCode(lua, extDir, codeBlocks.map((c) => c.content).join('\n'));
   }
 }
-
-
-LensExtension? getLens(String dir, String name) => (
-  lensExtensions
-  .where((lens) => lens.name == name && lens.ext == dir)
-  .firstOrNull
-);

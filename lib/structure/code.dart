@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:notes/editor/lua_state.dart';
 import 'package:notes/editor/note_editor.dart';
-import 'package:notes/extensions/lua_result.dart';
-import 'package:notes/extensions/lua_utils.dart';
+import 'package:notes/lua/lua_result.dart';
+import 'package:notes/lua/lua_state.dart';
+import 'package:notes/lua/utils.dart';
 import 'package:notes/structure/structure.dart';
 
 
@@ -62,7 +62,7 @@ class __CodeSectionWidgetState extends State<_CodeSectionWidget> {
           language != 'lua' ? Container() : IconButton(
             icon: const Icon(Icons.play_arrow),
             onPressed: () => setState(() {
-                result = luaExecuteCode(getGlobalLuaState(), content);
+                result = luaExecuteCode(getGlobalLuaState(), content, null);
             }),
           ),
         ]

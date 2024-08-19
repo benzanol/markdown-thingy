@@ -2,10 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:notes/drawer/left_drawer.dart';
-import 'package:notes/editor/lua_state.dart';
 import 'package:notes/editor/note_editor.dart';
 import 'package:notes/editor/state.dart';
 import 'package:notes/extensions/load_extensions.dart';
+import 'package:notes/lua/lua_state.dart';
 
 
 class NoteHandler extends StatefulWidget {

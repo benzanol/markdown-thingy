@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:lua_dardo/lua.dart';
 import 'package:notes/components/hscroll.dart';
-import 'package:notes/editor/lua_state.dart';
 import 'package:notes/editor/note_editor.dart';
 import 'package:notes/extensions/lenses.dart';
-import 'package:notes/extensions/lua_utils.dart';
+import 'package:notes/lua/lua_state.dart';
 import 'package:notes/lua/lua_ui.dart';
+import 'package:notes/lua/utils.dart';
 import 'package:notes/structure/structure.dart';
 
 

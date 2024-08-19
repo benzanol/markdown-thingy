@@ -2,9 +2,9 @@ import 'dart:math';
 
 import 'package:lua_dardo/lua.dart';
 import 'package:notes/extensions/load_extensions.dart';
-import 'package:notes/extensions/lua_object.dart';
-import 'package:notes/extensions/lua_utils.dart';
+import 'package:notes/lua/lua_object.dart';
 import 'package:notes/lua/lua_ui.dart';
+import 'package:notes/lua/utils.dart';
 
 
 const String toStateField = 'parse';

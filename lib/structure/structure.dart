@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:notes/extensions/to_lua.dart';
+import 'package:notes/lua/to_lua.dart';
 import 'package:notes/structure/code.dart';
 import 'package:notes/structure/lens.dart';
 import 'package:notes/structure/table.dart';

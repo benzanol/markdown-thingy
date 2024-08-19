@@ -1,15 +1,20 @@
+import 'dart:io';
+
 import 'package:lua_dardo/lua.dart';
+import 'package:notes/drawer/file_ops.dart';
 import 'package:notes/extensions/lenses.dart';
 import 'package:notes/extensions/load_extensions.dart';
-import 'package:notes/extensions/lua_object.dart';
-import 'package:notes/extensions/lua_utils.dart';
-import 'package:notes/extensions/to_lua.dart';
+import 'package:notes/lua/lua_object.dart';
+import 'package:notes/lua/lua_result.dart';
+import 'package:notes/lua/to_lua.dart';
+import 'package:notes/lua/utils.dart';
+import 'package:notes/main.dart';
 import 'package:notes/structure/code.dart';
 import 'package:notes/structure/structure.dart';
 
 
 // Functions which manually push their output onto the stack, and return the number of outputs
-final rawFunctions = <String, int Function(LuaState)> {
+final pushFunctions = <String, int Function(LuaState)> {
   'import': (lua) {
     ensureArgCount(lua, 1);
     final extName = ensureLuaString(LuaObject.parse(lua));
@@ -22,6 +27,34 @@ final rawFunctions = <String, int Function(LuaState)> {
 
 // Functions which return their output
 final returnFunctions = <String, dynamic Function(LuaState)>{
+  'loadfile': (lua) {
+    final currentDir = luaCurrentFile?.parent;
+    if (currentDir == null) throw 'loadfile can only be used in extensions';
+
+    ensureArgCount(lua, 1);
+    final relativePath = ensureLuaString(LuaObject.parse(lua));
+    final fromRepoRoot = currentDir.uri.resolve(relativePath);
+
+    // Check the file type
+    final isMarkdown =
+    relativePath.endsWith('.md') ? true
+    : relativePath.endsWith('.lua') ? false
+    : (throw 'Can only load a lua (.lua) or markdown (.md) file');
+
+    // Check if the file exists
+    final file = File.fromUri(repoRootDirectory.uri.resolveUri(fromRepoRoot));
+    if (!file.existsSync()) throw 'File $fromRepoRoot does not exist';
+
+    // Parse the code from the file
+    final contents = file.readAsStringSync();
+    final code = !isMarkdown ? contents : (
+      Structure.parse(contents).getElements<StructureCode>().map((c) => c.content).join('\n')
+    );
+
+    final result = luaExecuteCode(lua, code, file);
+    if (result is LuaFailure) throw result.error;
+    if (result is LuaSuccess) return result.value;
+  },
   'parse_markdown': (lua) {
     ensureArgCount(lua, 1);
     final content = ensureLuaString(LuaObject.parse(lua));
@@ -35,10 +68,9 @@ final returnFunctions = <String, dynamic Function(LuaState)>{
     final codeBlocks = structure.getElements<StructureCode>();
     lua.doString(codeBlocks.map((block) => block.content).join('\n'));
   },
-
   'deflens': (lua) {
-    final ext = loadingExtension;
-    if (ext == null) throw 'Can only define a lens inside an extension';
+    final extDir = loadingExtension;
+    if (extDir == null) throw 'Can only define a lens inside an extension';
 
     ensureArgCount(lua, 2);
     final name = ensureLuaString(LuaObject.parse(lua, index: -2));
@@ -50,7 +82,7 @@ final returnFunctions = <String, dynamic Function(LuaState)>{
     }
 
     // Get the name
-    final lens = LensExtension(ext: ext, name: name);
+    final lens = LensExtension(ext: fileName(extDir), name: name);
     lensTypes.add(lens);
 
     // Add it to the lua table
@@ -63,9 +95,9 @@ void registerLuaFunctions(LuaState lua, String tableName) {
   lua.newTable();
 
   // Add raw functions to the table
-  for (final rawFn in rawFunctions.entries) {
-    lua.pushDartFunction(rawFn.value);
-    lua.setField(-2, rawFn.key);
+  for (final pushFn in pushFunctions.entries) {
+    lua.pushDartFunction(pushFn.value);
+    lua.setField(-2, pushFn.key);
   }
 
   // Add returning functions to the table

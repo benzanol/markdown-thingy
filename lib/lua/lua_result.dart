@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:notes/extensions/lua_object.dart';
+import 'package:notes/lua/lua_object.dart';
 
 
 abstract class LuaResult {

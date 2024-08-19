@@ -1,5 +1,5 @@
 import 'package:lua_dardo/lua.dart';
-import 'package:notes/extensions/lua_object.dart';
+import 'package:notes/lua/lua_object.dart';
 
 
 abstract class ToJson {
