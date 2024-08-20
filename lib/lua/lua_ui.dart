@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:lua_dardo/lua.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'package:notes/editor/note_editor.dart';
-import 'package:notes/lua/functions.dart';
+import 'package:notes/lua/lua_ensure.dart';
 import 'package:notes/lua/lua_object.dart';
 
 
@@ -34,8 +34,8 @@ abstract class LuaUi {
     return ui;
   }
   static LuaUi _parse(LuaObject obj) {
-    final table = ensureLuaTable(obj);
-    final uiType = ensureLuaString(table['type'], field: 'type');
+    final table = ensureLuaTable(obj, 'ui');
+    final uiType = ensureLuaString(table['type'], 'ui.type');
 
     switch (uiType) {
       case 'field': return LuaTextFieldUi(table.listValues.firstOrNull?.value?.toString() ?? '');

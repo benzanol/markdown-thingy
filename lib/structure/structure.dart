@@ -32,6 +32,13 @@ class Structure implements ToJson {
     ...headings.expand((h) => h.$2.getElements<T>()),
   ];
 
+  String getLuaCode() => (
+    getElements<StructureCode>()
+    .where((c) => c.language == 'lua')
+    .map((c) => c.content)
+    .join('\n\n')
+  );
+
   Structure? getHeading(String name, {bool noCase = false}) => (
     headings.where((heading) => (
         (noCase ? heading.$1.toLowerCase() : heading.$1)

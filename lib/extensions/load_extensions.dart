@@ -5,7 +5,6 @@ import 'package:notes/drawer/file_ops.dart';
 import 'package:notes/lua/lua_object.dart';
 import 'package:notes/lua/lua_result.dart';
 import 'package:notes/lua/utils.dart';
-import 'package:notes/structure/code.dart';
 import 'package:notes/structure/structure.dart';
 
 
@@ -69,8 +68,6 @@ Future<void> loadExtensions(LuaState lua, Directory rootDir) async {
   for (final maybeExt in maybeExtensions) {
     if (maybeExt == null) return;
     final (extDir, content) = maybeExt;
-    final codeBlocks = Structure.parse(content).getElements<StructureCode>();
-
-    runExtensionCode(lua, extDir, codeBlocks.map((c) => c.content).join('\n'));
+    runExtensionCode(lua, extDir, Structure.parse(content).getLuaCode());
   }
 }
