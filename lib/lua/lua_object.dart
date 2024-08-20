@@ -1,4 +1,9 @@
 import 'package:lua_dardo/lua.dart';
+import 'package:notes/lua/to_lua.dart';
+
+
+// Lua variable used to store parsed tables to avoid infinite loops
+const tableCacheVariable = '*table-cache*';
 
 
 List<LuaObject> parseStack(LuaState lua) {
@@ -23,8 +28,15 @@ abstract class LuaObject {
   @override
   int get hashCode => value.hashCode;
 
-  static LuaObject parse(LuaState lua, {int index = -1, int? maxDepth}) {
+  static LuaObject parse(LuaState lua, {int index = -1, int? maxDepth, List<LuaTable>? tableCache}) {
     final nextMaxDepth = maxDepth == null ? null : maxDepth - 1;
+
+    // Reset the table cache
+    if (tableCache == null) {
+      tableCache = [];
+      lua.newTable();
+      lua.setGlobal(tableCacheVariable);
+    }
 
     if (lua.isNil(index)) {
       return LuaNil();
@@ -35,21 +47,46 @@ abstract class LuaObject {
     } else if (lua.isBoolean(index)) {
       return LuaBoolean(lua.toBoolean(index));
     } else if (lua.isTable(index)) {
-      Map<LuaObject, LuaObject> table = {};
-      if (maxDepth == 0) return LuaTable(table);
+      if (maxDepth == 0) return LuaTable({});
+
+      // Check if this is in the table cache
+      lua.pushValue(index);
+      lua.getGlobal(tableCacheVariable);
+      lua.insert(-2);
+      lua.getTable(-2);
+      // Stack looks like [..., tableCache, index?]
+      final cacheIndex = lua.toIntegerX(-1);
+      lua.pop(2);
+      if (cacheIndex != null) {
+        return tableCache[cacheIndex];
+      }
+
+      // Add this table to the table cache
+      lua.pushValue(index);
+      lua.getGlobal(tableCacheVariable);
+      lua.insert(-2);
+      lua.pushInteger(tableCache.length);
+      // Stack looks like [..., tableCache, table, index]
+      lua.setTable(-3);
+      lua.pop(1);
+
+      final table = LuaTable({});
+      tableCache.add(table);
 
       // When lua iterates through tables, it expects the stack to look like [table, ..., prevKey],
       // where table is at position index-1 (since it was at index before adding the key.)
       // Start with a nil key to indicate that the iteration hasn't started.
       lua.pushNil();
-      while (lua.next(index - 1)) {
-        LuaObject value = LuaObject.parse(lua, maxDepth: nextMaxDepth);
+      final indexNow = index < 0 ? index - 1 : index;
+      while (lua.next(indexNow)) {
+        LuaObject value = LuaObject.parse(lua, maxDepth: nextMaxDepth, tableCache: tableCache);
         lua.pop(1);  // Pop the value, keep the key for the next iteration
-        LuaObject key = LuaObject.parse(lua, maxDepth: nextMaxDepth);
-        table[key] = value;
+        LuaObject key = LuaObject.parse(lua, maxDepth: nextMaxDepth, tableCache: tableCache);
+        table.value[key] = value;
       }
-      return LuaTable(table);
-    }   else if (lua.isString(index)) {
+
+      return table;
+    } else if (lua.isString(index)) {
       return LuaString(lua.toStr(index)!);
     } else {
       return LuaOther(lua.type(index));
@@ -108,6 +145,11 @@ class LuaTable extends LuaObject {
     field is num ? value[LuaNumber(field)]
     : field is String ? value[LuaString(field)]
     : null
+  );
+  void operator []=(field, obj) => (
+    field is num ? value[LuaNumber(field)] = toLua(obj)
+    : field is String ? value[LuaString(field)] = toLua(obj)
+    : throw 'Invalid table key: $field'
   );
 
   @override
