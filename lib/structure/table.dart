@@ -51,25 +51,28 @@ class _TableWidget extends StatelessWidget {
   final StructureTable element;
 
   @override
-  Widget build(BuildContext context) => Hscroll(child: Table(
-      border: TableBorder.all(),
-      defaultColumnWidth: const IntrinsicColumnWidth(),
-      children: element._table.indexed.map((row) => TableRow(
-          children: row.$2.indexed.map((cell) => TableCell(
-              child: TextField(
-                controller: TextEditingController(text: cell.$2),
-                onChanged: (content) {
-                  element._table[row.$1][cell.$1] = content;
-                  note.update();
-                },
-                maxLines: null,
-                decoration: const InputDecoration(
-                  isDense: true,
-                  contentPadding: EdgeInsets.all(8),
-                  border: InputBorder.none,
+  Widget build(BuildContext context) => Container(
+    color: Theme.of(context).colorScheme.surface,
+    child: Hscroll(child: Table(
+        border: TableBorder.all(),
+        defaultColumnWidth: const IntrinsicColumnWidth(),
+        children: element._table.indexed.map((row) => TableRow(
+            children: row.$2.indexed.map((cell) => TableCell(
+                child: TextField(
+                  controller: TextEditingController(text: cell.$2),
+                  onChanged: (content) {
+                    element._table[row.$1][cell.$1] = content;
+                    note.update();
+                  },
+                  maxLines: null,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.all(8),
+                    border: InputBorder.none,
+                  ),
                 ),
-              )
-          )).toList(),
-      )).toList(),
-  ));
+            )).toList(),
+        )).toList(),
+    )),
+  );
 }

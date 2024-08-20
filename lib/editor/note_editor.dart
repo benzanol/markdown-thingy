@@ -6,7 +6,7 @@ import 'package:notes/structure/text.dart';
 
 
 const double hMargin = 8;
-const double vMargin = 4;
+const double vSpace = 8;
 const double textPadding = 8;
 const Color borderColor = Colors.grey;
 
@@ -38,7 +38,7 @@ class NoteEditor extends StatelessWidget {
         thumbVisibility: true,
         controller: scrollController,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: hMargin, vertical: vMargin),
+          padding: const EdgeInsets.symmetric(horizontal: hMargin, vertical: vSpace),
           controller: scrollController,
           child: _childEditor,
         ),
@@ -48,28 +48,12 @@ class NoteEditor extends StatelessWidget {
 }
 
 
-class _ElementBoxWidget extends StatelessWidget {
-  const _ElementBoxWidget(this.note, this.element);
-  final NoteEditor note;
-  final StructureElement element;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.symmetric(vertical: vMargin),
-    color: Theme.of(context).colorScheme.surface,
-    child: element.widget(note),
-  );
-}
-
-
-abstract class _NoteEditorWidget implements Widget {
-  String toText();
-}
+abstract class _NoteEditorWidget implements Widget { String toText(); }
 
 
 class _RawNoteWidget extends StatelessWidget implements _NoteEditorWidget {
   _RawNoteWidget(this.note, String init)
-  : text = StructureText(init.split('\n'));
+  : text = StructureText(init);
 
   final NoteEditor note;
   final StructureText text;
@@ -78,7 +62,7 @@ class _RawNoteWidget extends StatelessWidget implements _NoteEditorWidget {
   String toText() => text.toText();
 
   @override
-  Widget build(BuildContext context) => _ElementBoxWidget(note, text);
+  Widget build(BuildContext context) => text.widget(note);
 }
 
 
@@ -103,7 +87,10 @@ class _StructureNoteWidgetState extends State<_StructureNoteWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ...widget.structure.content.map((elem) => _ElementBoxWidget(widget.note, elem)),
+        ...widget.structure.content.expand((elem) => [
+            const SizedBox(height: vSpace),
+            elem.widget(widget.note),
+        ]).skip(1),
         ...widget.structure.headings.expand((head) {
             final isFolded = foldedHeadings.contains(head.$1);
             final headWidget = GestureDetector(

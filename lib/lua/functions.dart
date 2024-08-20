@@ -30,7 +30,7 @@ File _resolveFile(String relative) {
 final pushFunctions = <String, int Function(LuaState)> {
   'import': (lua) {
     ensureArgCount(lua, 1);
-    final extName = ensureLuaString(LuaObject.parse(lua), 'extension');
+    final extName = ensureLuaString(LuaObject.parse(lua, index: 1), 'extension');
 
     // Push the scope onto the stack
     luaPushTableEntry(lua, extsVariable, [extName, extsScopeField]);
@@ -42,7 +42,7 @@ final pushFunctions = <String, int Function(LuaState)> {
 final returnFunctions = <String, dynamic Function(LuaState)>{
   'parse_markdown': (lua) {
     ensureArgCount(lua, 1);
-    final content = ensureLuaString(LuaObject.parse(lua), 'string');
+    final content = ensureLuaString(LuaObject.parse(lua, index: 1), 'string');
     return Structure.parse(content);
   },
   'deflens': (lua) {
@@ -50,8 +50,8 @@ final returnFunctions = <String, dynamic Function(LuaState)>{
     if (extDir == null) throw 'Can only define a lens inside an extension';
 
     ensureArgCount(lua, 2);
-    final name = ensureLuaString(LuaObject.parse(lua, index: -2), 'name');
-    final table = ensureLuaTable(LuaObject.parse(lua, index: -1), 'functions');
+    final name = ensureLuaString(LuaObject.parse(lua, index: 1), 'name');
+    final table = ensureLuaTable(LuaObject.parse(lua, index: 2), 'functions');
 
     // Check the function fields
     for (final field in [toStateField, toTextField, toUiField]) {
@@ -68,18 +68,18 @@ final returnFunctions = <String, dynamic Function(LuaState)>{
 
   'read_file': (lua) {
     ensureArgCount(lua, 1);
-    final file = _resolveFile(ensureLuaString(LuaObject.parse(lua), 'file'));
+    final file = _resolveFile(ensureLuaString(LuaObject.parse(lua, index: 1), 'file'));
     return file.readAsStringSync();
   },
   'parse_file': (lua) {
     ensureArgCount(lua, 1);
-    final file = _resolveFile(ensureLuaString(LuaObject.parse(lua), 'file'));
+    final file = _resolveFile(ensureLuaString(LuaObject.parse(lua, index: 1), 'file'));
     if (!file.path.endsWith('.md')) throw 'Can only parse a markdown (.md) file';
     return Structure.parse(file.readAsStringSync());
   },
   'load_file': (lua) {
     ensureArgCount(lua, 1);
-    final file = _resolveFile(ensureLuaString(LuaObject.parse(lua), 'file'));
+    final file = _resolveFile(ensureLuaString(LuaObject.parse(lua, index: 1), 'file'));
 
     // Check the file type
     final isMarkdown =

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:notes/editor/editor_box.dart';
 import 'package:notes/editor/note_editor.dart';
 import 'package:notes/lua/lua_result.dart';
 import 'package:notes/lua/lua_state.dart';
@@ -39,11 +40,11 @@ class _CodeSectionWidget extends StatefulWidget {
   final StructureCode element;
 
   @override
-  State<_CodeSectionWidget> createState() => __CodeSectionWidgetState();
+  State<_CodeSectionWidget> createState() => _CodeSectionWidgetState();
 }
 
-class __CodeSectionWidgetState extends State<_CodeSectionWidget> {
-  __CodeSectionWidgetState();
+class _CodeSectionWidgetState extends State<_CodeSectionWidget> {
+  _CodeSectionWidgetState();
 
   String get language => widget.element.language;
   String get content => widget.element.content;
@@ -56,8 +57,13 @@ class __CodeSectionWidgetState extends State<_CodeSectionWidget> {
     children: [
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Text(language),
+          Text(
+            language,
+            textScaler: const TextScaler.linear(1.2),
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
           language != 'lua' ? Container() : IconButton(
             icon: const Icon(Icons.play_arrow),
             onPressed: () => setState(() {
@@ -66,22 +72,13 @@ class __CodeSectionWidgetState extends State<_CodeSectionWidget> {
           ),
         ]
       ),
-      Container(
-        decoration: BoxDecoration(border: Border.all(color: borderColor)),
-        child: TextField(
-          controller: TextEditingController(text: content),
-          onChanged: (newText) {
-            widget.element.content = newText;
-            widget.note.update();
-          },
-
-          maxLines: null,
-          decoration: const InputDecoration(
-            isDense: true,
-            border: InputBorder.none,
-            contentPadding: EdgeInsets.all(textPadding),
-          ),
-        ),
+      EditorBoxField(
+        init: content,
+        onChange: (newText) {
+          widget.element.content = newText;
+          widget.note.update();
+        },
+        style: const TextStyle(fontFamily: 'Iosevka'),
       ),
       result?.widget() ?? Container(),
   ]);

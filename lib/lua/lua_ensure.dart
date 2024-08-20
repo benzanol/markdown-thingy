@@ -6,9 +6,10 @@ String luaTypeName(LuaType? type) => type == null ? 'nil' : type.name.substring(
 
 void ensureArgCount(LuaState lua, int min, {int? max}) {
   final count = lua.getTop();
-  if (count >= min && count <= (max ?? min)) return;
-  final argsStr = max == null ? '$min' : '$min-$max';
-  throw 'Expected $argsStr arguments, but found $count';
+  if (count < min && count > (max ?? min)) {
+    final argsStr = max == null ? '$min' : '$min-$max';
+    throw 'Expected $argsStr arguments, but found $count';
+  }
 }
 
 T ensureLuaType<T extends LuaObject>(LuaObject? obj, LuaType type, String field) {

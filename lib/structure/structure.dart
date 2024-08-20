@@ -132,9 +132,9 @@ Structure _parseStructure(List<String> lines, {int level = 0}) {
     if (specialElement == null) {
       final last = elements.lastOrNull;
       if (last is StructureText) {
-        last.lines.add(lines[line]);
+        last.text = '${last.text}\n${lines[line]}';
       } else {
-        elements.add(StructureText([lines[line]]));
+        elements.add(StructureText(lines[line]));
       }
       line++;
     } else {
