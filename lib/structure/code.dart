@@ -75,6 +75,7 @@ class _CodeSectionWidgetState extends State<_CodeSectionWidget> {
       ),
       EditorBoxField(
         init: content,
+        language: language,
         onChange: (newText) {
           widget.element.content = newText;
           widget.note.update();

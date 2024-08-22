@@ -37,6 +37,9 @@ dependencies:
   cupertino_icons: ^1.0.6
   material_design_icons_flutter: ^7.0.7296
   lua_dardo: ^0.0.5
+  highlight: ^0.7.0
+  flutter_highlight: ^0.7.0
+  code_text_field: ^1.1.0
 
 dev_dependencies:
   flutter_test:
