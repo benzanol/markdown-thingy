@@ -1,5 +1,4 @@
 import 'package:lua_dardo/lua.dart';
-import 'package:notes/lua/lua_object.dart';
 
 
 void luaPushTableEntry(LuaState lua, String variable, List<String> fields) {
@@ -48,11 +47,4 @@ void luaSetTableEntry(LuaState lua, String variable, List<String> fields) {
   lua.insert(-2);
   lua.setField(-2, fields.last);
   lua.pop(1);
-}
-
-Set<LuaObject> luaGlobals(LuaState lua) {
-  lua.pushGlobalTable();
-  final table = LuaObject.parse(lua, maxDepth: 1) as LuaTable;
-  lua.pop(1);
-  return table.value.keys.toSet();
 }

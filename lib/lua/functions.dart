@@ -17,13 +17,21 @@ File _resolveFile(String relative) {
   final currentDir = luaCurrentFile?.parent ?? repoRootDirectory;
   final file = File.fromUri(currentDir.uri.resolve(relative));
 
-  if (!file.path.startsWith(repoRootDirectory.path)) {
-    throw 'File $relative is outside of the repo';
-  }
+  if (!file.path.startsWith(repoRootDirectory.path)) throw 'File $relative is outside of the repo';
   if (!file.existsSync()) throw 'File $relative does not exist';
 
   return file;
 }
+Directory _resolveDir(String relative) {
+  final currentDir = luaCurrentFile?.parent ?? repoRootDirectory;
+  final dir = Directory.fromUri(currentDir.uri.resolve(relative));
+
+  if (!dir.path.startsWith(repoRootDirectory.path)) throw 'Directory $relative is outside of the repo';
+  if (!dir.existsSync()) throw 'File $relative does not exist';
+
+  return dir;
+}
+
 
 
 // Functions which manually push their output onto the stack, and return the number of outputs
@@ -36,15 +44,69 @@ final pushFunctions = <String, int Function(LuaState)> {
     luaPushTableEntry(lua, extsVariable, [extName, extsScopeField]);
     return 1;
   },
+
+  'parse_directory': (lua) {
+    ensureArgCount(lua, 1, max: 3);
+    final relativeDir = ensureLuaString(LuaObject.parse(lua, index: 1), 'directory');
+    final fn = ensureLuaTypeOrNone(LuaObject.parse(lua, index: 2), LuaType.luaFunction, 'modifier');
+    final err = ensureLuaTypeOrNone<LuaBoolean>(LuaObject.parse(lua, index: 3), LuaType.luaBoolean, 'err');
+
+    // Get a list of structures
+    final dir = _resolveDir(relativeDir);
+    final files = dir.listSync().whereType<File>().where((f) => f.path.endsWith('md'));
+    final structs = files.map((f) => (f, Structure.parse(f.readAsStringSync())));
+
+    // If there is no function, return the list of structs
+    if (fn == null) {
+      toLua(structs.map((tup) => tup.$2).toList()).put(lua);
+      return 1;
+    }
+
+    // Create a table for the structs, and then push the function results into the table
+    lua.newTable();
+    for (final (file, struct) in structs) {
+      // Call the function with the struct as the argument
+      lua.pushValue(2);
+      toLua(struct).put(lua);
+      final status = lua.pCall(1, 1, 0);
+
+      // The stack looks like [dir, function, table, result/error]
+      if (status == ThreadStatus.luaOk) {
+        // Add the result to the table
+        lua.pushString(fileName(file));
+        lua.insert(-2);
+        lua.setTable(-3);
+      } else if (err == LuaBoolean(true)) {
+        // Throw the error if the user specified not to ignore errors
+        throw lua.toStr(-1)!;
+      } else {
+        // Pop the error message
+        lua.pop(1);
+      }
+    }
+
+    return 1;
+  },
 };
 
 // Functions which return their output
 final returnFunctions = <String, dynamic Function(LuaState)>{
+  'print_stack': (lua) {
+    // ignore: avoid_print
+    print('STACK: ${parseStack(lua)}');
+  },
+
   'parse_markdown': (lua) {
     ensureArgCount(lua, 1);
     final content = ensureLuaString(LuaObject.parse(lua, index: 1), 'string');
     return Structure.parse(content);
   },
+  'to_markdown': (lua) {
+    ensureArgCount(lua, 1);
+    final structure = ensureLuaTable(LuaObject.parse(lua, index: 1), 'structure');
+    return Structure.fromLua(structure).toText();
+  },
+
   'deflens': (lua) {
     final extDir = loadingExtension;
     if (extDir == null) throw 'Can only define a lens inside an extension';
@@ -55,7 +117,7 @@ final returnFunctions = <String, dynamic Function(LuaState)>{
 
     // Check the function fields
     for (final field in [toStateField, toTextField, toUiField]) {
-      ensureLuaType(table[field], LuaType.luaFunction, 'functions.$field');
+      ensureLuaType(table[field] ?? LuaNil(), LuaType.luaFunction, 'functions.$field');
     }
 
     // Get the name

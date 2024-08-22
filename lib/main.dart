@@ -7,6 +7,19 @@ import 'package:notes/editor/notes_handler.dart';
 Directory repoRootDirectory = Directory('/home/benzanol/Documents/repo');
 
 void main() {
+  FlutterError.onError = (FlutterErrorDetails details) {
+    final errorMessage = details.exceptionAsString();
+    final stackTrace = details.stack.toString().split('\n').take(10).join('\n');
+
+    // ANSI escape code for red text
+    const String redText = '\x1B[31m';
+    const String resetText = '\x1B[0m';
+
+    // Print the stack trace first and then the error message at the bottom
+    // debugPrint('$stackTrace\n\n${redText}ERROR MESSAGE: $errorMessage$resetText');
+    debugPrint('$stackTrace\n\n${redText}ERROR MESSAGE: $errorMessage$resetText');
+  };
+
   runApp(const MyApp());
 }
 

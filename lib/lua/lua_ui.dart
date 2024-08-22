@@ -34,8 +34,12 @@ abstract class LuaUi {
     return ui;
   }
   static LuaUi _parse(LuaObject obj) {
+    if (obj is LuaString) {
+      return LuaUi._parse(LuaTable({LuaString('type'): LuaString('label'), LuaNumber(1): obj}));
+    }
+
     final table = ensureLuaTable(obj, 'ui');
-    final uiType = ensureLuaString(table['type'], 'ui.type');
+    final uiType = ensureLuaString(table['type'] ?? LuaNil(), 'ui.type');
 
     switch (uiType) {
       case 'field': return LuaTextFieldUi(table.listValues.firstOrNull?.value?.toString() ?? '');
@@ -188,7 +192,13 @@ class LuaTableUi extends LuaUi {
     border: TableBorder.all(),
     defaultColumnWidth: const IntrinsicColumnWidth(),
     children: rows.map((row) => TableRow(
-        children: row.map((cell) => TableCell(child: cell.widget(onChange))).toList(),
+        children: row.map((cell) => TableCell(child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 50),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: textPadding, vertical: textPadding/2),
+                child: cell.widget(onChange),
+              ),
+        ))).toList(),
     )).toList()
   );
 }

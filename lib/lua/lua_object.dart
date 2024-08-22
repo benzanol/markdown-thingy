@@ -1,8 +1,9 @@
 import 'package:lua_dardo/lua.dart';
+import 'package:notes/lua/lua_ensure.dart';
 import 'package:notes/lua/to_lua.dart';
 
 
-// Lua variable used to store parsed tables to avoid infinite loops
+// Lua variable used to store parsed tables to allow for circular references
 const tableCacheVariable = '*table-cache*';
 
 
@@ -28,7 +29,11 @@ abstract class LuaObject {
   @override
   int get hashCode => value.hashCode;
 
-  static LuaObject parse(LuaState lua, {int index = -1, int? maxDepth, List<LuaTable>? tableCache}) {
+  static LuaObject parse(LuaState lua, {
+      int index = -1,
+      int? maxDepth,
+      List<LuaTable>? tableCache,
+  }) {
     final nextMaxDepth = maxDepth == null ? null : maxDepth - 1;
 
     // Reset the table cache
@@ -141,6 +146,16 @@ class LuaTable extends LuaObject {
   LuaTable(this.value);
   @override final Map<LuaObject, LuaObject> value;
 
+  @override
+  String toString() {
+    const String indent = '    ';
+    final entries = value.entries.map((e) {
+        final valueStr = e.value.toString().replaceAll('\n', '\n$indent');
+        return '$indent${e.key}: $valueStr,';
+    });
+    return '{\n${entries.join("\n")}\n}';
+  }
+
   LuaObject? operator [](field) => (
     field is num ? value[LuaNumber(field)]
     : field is String ? value[LuaString(field)]
@@ -176,7 +191,7 @@ class LuaOther extends LuaObject {
   @override final dynamic value = null;
 
   @override
-  String toString() => '<$type>';
+  String toString() => '<${luaTypeName(type)}>';
 
   @override
   void put(LuaState lua) => lua.pushNil();

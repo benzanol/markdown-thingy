@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:notes/editor/note_editor.dart';
+import 'package:notes/extensions/lenses.dart';
+import 'package:notes/lua/lua_object.dart';
 import 'package:notes/lua/to_lua.dart';
 import 'package:notes/structure/code.dart';
 import 'package:notes/structure/lens.dart';
@@ -18,33 +20,12 @@ class Structure implements ToJson {
   List<StructureElement> content;
   List<(String, Structure)> headings;
 
-  static Structure parse(String string) => _parseStructure(string.split('\n'));
-
   @override
   Map<String, dynamic> toJson() => {
     'props': props,
     'content': content,
     'headings': headings.map((h) => {'title': h.$1, ...h.$2.toJson()}).toList()
   };
-
-  List<T> getElements<T extends StructureElement>() => [
-    ...content.whereType<T>(),
-    ...headings.expand((h) => h.$2.getElements<T>()),
-  ];
-
-  String getLuaCode() => (
-    getElements<StructureCode>()
-    .where((c) => c.language == 'lua')
-    .map((c) => c.content)
-    .join('\n\n')
-  );
-
-  Structure? getHeading(String name, {bool noCase = false}) => (
-    headings.where((heading) => (
-        (noCase ? heading.$1.toLowerCase() : heading.$1)
-        == (noCase ? name.toLowerCase() : name)
-    )).firstOrNull?.$2
-  );
 
   String toText() {
     final buf = StringBuffer();
@@ -76,6 +57,65 @@ class Structure implements ToJson {
       buf.writeln(name);
       body._write(buf, level: level + 1);
     }
+  }
+
+
+  List<T> getElements<T extends StructureElement>() => [
+    ...content.whereType<T>(),
+    ...headings.expand((h) => h.$2.getElements<T>()),
+  ];
+
+  String getLuaCode() => (
+    getElements<StructureCode>()
+    .where((c) => c.language == 'lua')
+    .map((c) => c.content)
+    .join('\n\n')
+  );
+
+  Structure? getHeading(String name, {bool noCase = false}) => (
+    headings.where((heading) => (
+        (noCase ? heading.$1.toLowerCase() : heading.$1)
+        == (noCase ? name.toLowerCase() : name)
+    )).firstOrNull?.$2
+  );
+
+
+  static Structure parse(String string) => _parseStructure(string.split('\n'));
+
+  static Structure fromLua(LuaObject obj) {
+    final table = obj as LuaTable;
+    return Structure(
+      props: Map.fromEntries(
+        (table['props'] as LuaTable).value.entries.map((e) => MapEntry(
+            (e.key as LuaString).value,
+            (e.value as LuaString).value,
+        ))
+      ),
+      content: (table['content'] as LuaTable).value.values.map((val) {
+          // Parse the structure element
+          final elem = val.value as LuaTable;
+          String field(String name) => (elem[name] as LuaString).value;
+
+          switch (field('type')) {
+            case 'text': return StructureText(field('text'));
+            case 'code': return StructureCode(field('content'), language: field('language'));
+            case 'lens': return StructureLens(
+              lens: LensExtension(ext: field('ext'), name: field('name')),
+              text: field('text'),
+            );
+            case 'table': return StructureTable(
+              (elem['rows'] as LuaTable).value.values.map((row) => (
+                  (row as LuaTable).value.values.map((cell) => (cell as LuaString).value).toList()
+              )).toList()
+            );
+            default: throw 'Invalid structure element type: ${field("type")}';
+          }
+      }).toList(),
+      headings: (table['headings'] as LuaTable).value.entries.map((e) => (
+          ((e.value as LuaTable)['title'] as LuaString).value,
+          Structure.fromLua(e.value),
+      )).toList(),
+    );
   }
 }
 

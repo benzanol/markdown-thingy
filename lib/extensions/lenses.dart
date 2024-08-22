@@ -11,7 +11,7 @@ const String toStateField = 'parse';
 const String toTextField = 'format';
 const String toUiField = 'render';
 
-const String lensesVariable = '__lenses__';
+const String lensesVariable = '*lenses*';
 const String lensesStateField = 'state';
 const String lensesUiField = 'ui';
 
