@@ -5,13 +5,14 @@ import 'package:notes/lua/lua_object.dart';
 import 'package:notes/lua/to_lua.dart';
 import 'package:notes/structure/code.dart';
 import 'package:notes/structure/lens.dart';
+import 'package:notes/structure/structure_type.dart';
 import 'package:notes/structure/table.dart';
 import 'package:notes/structure/text.dart';
 
 
 abstract class StructureElement implements ToJson {
   Widget widget(NoteEditor note);
-  String toText();
+  String toText(StructureType st);
 }
 
 class Structure implements ToJson {
@@ -27,35 +28,36 @@ class Structure implements ToJson {
     'headings': headings.map((h) => {'title': h.$1, ...h.$2.toJson()}).toList()
   };
 
-  String toText() {
+  String toText(StructureType st) {
     final buf = StringBuffer();
-    _write(buf);
+    _write(buf, st);
     return buf.toString();
   }
 
-  void _write(StringBuffer buf, {int level = 0}) {
+  void _write(StringBuffer buf, StructureType st, {int level = 0}) {
     // Write the props
     if (props.isNotEmpty) {
-      buf.writeln('---');
+      buf.writeln(st.beginProps);
       for (final entry in props.entries) {
         buf.write(entry.key);
         buf.write(': ');
         buf.writeln(entry.value);
       }
-      buf.writeln('---');
+      buf.writeln(st.endProps);
     }
 
     // Write the content
     for (final elem in content) {
-      buf.writeln(elem.toText());
+      buf.writeln(elem.toText(st));
     }
 
     // Write the headings
-    for (final (name, body) in headings) {
-      buf.write('#' * (level+1));
+    for (final (title, body) in headings) {
+      buf.write(st.headingPrefixChar * (level+1));
       buf.write(' ');
-      buf.writeln(name);
-      body._write(buf, level: level + 1);
+      buf.write(title);
+      buf.write('\n');
+      body._write(buf, st, level: level + 1);
     }
   }
 
@@ -80,7 +82,7 @@ class Structure implements ToJson {
   );
 
 
-  static Structure parse(String string) => _parseStructure(string.split('\n'));
+  static Structure parse(String string, StructureType st) => _parseStructure(string.split('\n'), st);
 
   static Structure fromLua(LuaObject obj) {
     final table = obj as LuaTable;
@@ -132,16 +134,12 @@ class Structure implements ToJson {
   .firstOrNull
 );
 
-Structure _parseStructure(List<String> lines, {int level = 0}) {
-  final headingRegexp = RegExp('^${"#" * (1+level)} (.+)\$');
-  final propsStartRegexp = RegExp(r'^---$');
-  final propsEndRegexp = RegExp(r'^---$');
-
+Structure _parseStructure(List<String> lines, StructureType st, {int level = 0}) {
   // Figure out if there is a property section
   int contentStart = 0;
   Map<String, String> props = {};
-  if (lines.isNotEmpty && propsStartRegexp.hasMatch(lines.first)) {
-    final propsEnd = _lineMatch(1, lines, propsEndRegexp)?.$1;
+  if (lines.isNotEmpty && st.beginPropsRegexp.hasMatch(lines.first)) {
+    final propsEnd = _lineMatch(1, lines, st.endPropsRegexp)?.$1;
     if (propsEnd != null) {
       contentStart = propsEnd + 1;
 
@@ -157,23 +155,23 @@ Structure _parseStructure(List<String> lines, {int level = 0}) {
   }
 
   // Find the first heading
-  (int, Match)? nextHead = _lineMatch(contentStart, lines, headingRegexp);
+  (int, Match)? nextHead = _lineMatch(contentStart, lines, st.headingRegexp(level + 1));
   final contentEnd = nextHead?.$1 ?? lines.length;
 
   // Parse the content
   final elements = <StructureElement>[];
   for (int line = contentStart; line < contentEnd;) {
     final specialElement = (
-      StructureTable.maybeParse(lines, line)
-      ?? StructureCode.maybeParse(lines, line)
-      ?? StructureLens.maybeParse(lines, line)
+      StructureTable.maybeParse(lines, line, st)
+      ?? StructureCode.maybeParse(lines, line, st)
+      ?? StructureLens.maybeParse(lines, line, st)
     );
 
     if (specialElement == null) {
       final last = elements.lastOrNull;
       if (last is StructureText) {
         last.text = '${last.text}\n${lines[line]}';
-      } else {
+      } else if (lines[line].isNotEmpty) { // Trim the beginning of texts
         elements.add(StructureText(lines[line]));
       }
       line++;
@@ -182,6 +180,10 @@ Structure _parseStructure(List<String> lines, {int level = 0}) {
       line = specialElement.$2;
     }
   }
+  // Trim texts
+  for (final elem in elements.whereType<StructureText>()) {
+    elem.text= elem.text.trim();
+  }
 
   // Parse each heading section
   final headings = <(String, Structure)>[];
@@ -189,9 +191,9 @@ Structure _parseStructure(List<String> lines, {int level = 0}) {
     final (prevHeadLine, prevHeadMatch) = nextHead;
 
 
-    nextHead = _lineMatch(prevHeadLine+1, lines, headingRegexp);
+    nextHead = _lineMatch(prevHeadLine+1, lines, st.headingRegexp(level + 1));
     final prevHeadLines = lines.sublist(prevHeadLine+1, nextHead?.$1 ?? lines.length);
-    final prevHeadContent = _parseStructure(prevHeadLines, level: level+1);
+    final prevHeadContent = _parseStructure(prevHeadLines, st, level: level+1);
     headings.add((prevHeadMatch.group(1)!, prevHeadContent));
   }
 

@@ -4,6 +4,7 @@ import 'package:notes/editor/note_editor.dart';
 import 'package:notes/lua/lua_result.dart';
 import 'package:notes/lua/lua_state.dart';
 import 'package:notes/structure/structure.dart';
+import 'package:notes/structure/structure_type.dart';
 
 
 class StructureCode extends StructureElement {
@@ -14,20 +15,20 @@ class StructureCode extends StructureElement {
   @override
   dynamic toJson() => {'type': 'code', 'content': content, 'language': language};
 
-  static (StructureCode, int)? maybeParse(List<String> lines, int line) {
-    if (!lines[line].startsWith('```')) return null;
-    final language = lines[line].substring(3);
+  static (StructureCode, int)? maybeParse(List<String> lines, int line, StructureType st) {
+    final match = st.beginCodeRegexp.firstMatch(lines[line]);
+    if (match == null) return null;
+    final language = match.group(1)!;
 
-    final endLine = lines.skip(line+1).indexed.where((e) => e.$2 == '```').firstOrNull;
+    final endLine = lines.indexed.skip(line+1).where((e) => st.endCodeRegexp.hasMatch(e.$2)).firstOrNull;
     if (endLine == null) return null;
 
-    final endLineNum = endLine.$1 + (line+1);
-    final contents = lines.getRange(line+1, endLineNum).join('\n');
-    return (StructureCode(contents, language: language), endLineNum + 1);
+    final contents = lines.getRange(line+1, endLine.$1).join('\n');
+    return (StructureCode(contents, language: language), endLine.$1 + 1);
   }
 
   @override
-  String toText() => '```$language\n$content\n```';
+  String toText(StructureType st) => '${st.beginCode}$language\n$content\n${st.endCode}';
 
   @override
   Widget widget(NoteEditor note) => _CodeSectionWidget(note, this);
@@ -78,7 +79,10 @@ class _CodeSectionWidgetState extends State<_CodeSectionWidget> {
           widget.element.content = newText;
           widget.note.update();
         },
-        style: const TextStyle(fontFamily: 'Iosevka'),
+        style: const TextStyle(
+          fontFamily: 'Iosevka',
+          fontFeatures: [FontFeature.fractions()],
+        ),
       ),
       result?.widget() ?? Container(),
   ]);

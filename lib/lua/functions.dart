@@ -11,6 +11,7 @@ import 'package:notes/lua/to_lua.dart';
 import 'package:notes/lua/utils.dart';
 import 'package:notes/main.dart';
 import 'package:notes/structure/structure.dart';
+import 'package:notes/structure/structure_type.dart';
 
 
 File _resolveFile(String relative) {
@@ -48,16 +49,18 @@ final pushFunctions = <String, int Function(LuaState)> {
   'parse_directory': (lua) {
     ensureArgCount(lua, 1, max: 3);
     final relativeDir = ensureLuaString(LuaObject.parse(lua, index: 1), 'directory');
-    final fn = ensureLuaTypeOrNone(LuaObject.parse(lua, index: 2), LuaType.luaFunction, 'modifier');
+    final modifier = ensureLuaTypeOrNone(LuaObject.parse(lua, index: 2), LuaType.luaFunction, 'modifier');
     final err = ensureLuaTypeOrNone<LuaBoolean>(LuaObject.parse(lua, index: 3), LuaType.luaBoolean, 'err');
 
     // Get a list of structures
     final dir = _resolveDir(relativeDir);
-    final files = dir.listSync().whereType<File>().where((f) => f.path.endsWith('md'));
-    final structs = files.map((f) => (f, Structure.parse(f.readAsStringSync())));
+    final structs = dir.listSync().whereType<File>().map((f) {
+        final st = StructureType.fromFile(f.path);
+        return st == null ? null : (f, Structure.parse(f.readAsStringSync(), st));
+    }).whereType<(File, Structure)>();
 
     // If there is no function, return the list of structs
-    if (fn == null) {
+    if (modifier == null) {
       toLua(structs.map((tup) => tup.$2).toList()).put(lua);
       return 1;
     }
@@ -99,21 +102,31 @@ final returnFunctions = <String, dynamic Function(LuaState)>{
   'parse_markdown': (lua) {
     ensureArgCount(lua, 1);
     final content = ensureLuaString(LuaObject.parse(lua, index: 1), 'string');
-    return Structure.parse(content);
+    return Structure.parse(content, const MarkdownStructureType());
   },
   'to_markdown': (lua) {
     ensureArgCount(lua, 1);
     final structure = ensureLuaTable(LuaObject.parse(lua, index: 1), 'structure');
-    return Structure.fromLua(structure).toText();
+    return Structure.fromLua(structure).toText(const MarkdownStructureType());
+  },
+  'parse_org': (lua) {
+    ensureArgCount(lua, 1);
+    final content = ensureLuaString(LuaObject.parse(lua, index: 1), 'string');
+    return Structure.parse(content, const MarkdownStructureType());
+  },
+  'to_org': (lua) {
+    ensureArgCount(lua, 1);
+    final structure = ensureLuaTable(LuaObject.parse(lua, index: 1), 'structure');
+    return Structure.fromLua(structure).toText(const OrgStructureType());
   },
 
   'deflens': (lua) {
     final extDir = loadingExtension;
     if (extDir == null) throw 'Can only define a lens inside an extension';
 
-    ensureArgCount(lua, 2);
-    final name = ensureLuaString(LuaObject.parse(lua, index: 1), 'name');
-    final table = ensureLuaTable(LuaObject.parse(lua, index: 2), 'functions');
+    ensureArgCount(lua, 1);
+    final table = ensureLuaTable(LuaObject.parse(lua, index: 1), 'functions');
+    final name = ensureLuaString(table['name'] ?? LuaNil(), 'name');
 
     // Check the function fields
     for (final field in [toStateField, toTextField, toUiField]) {
@@ -136,22 +149,21 @@ final returnFunctions = <String, dynamic Function(LuaState)>{
   'parse_file': (lua) {
     ensureArgCount(lua, 1);
     final file = _resolveFile(ensureLuaString(LuaObject.parse(lua, index: 1), 'file'));
-    if (!file.path.endsWith('.md')) throw 'Can only parse a markdown (.md) file';
-    return Structure.parse(file.readAsStringSync());
+    final st = StructureType.fromFile(file.path) ?? (throw 'Invalid parse file type');
+    return Structure.parse(file.readAsStringSync(), st);
   },
   'load_file': (lua) {
     ensureArgCount(lua, 1);
     final file = _resolveFile(ensureLuaString(LuaObject.parse(lua, index: 1), 'file'));
 
     // Check the file type
-    final isMarkdown =
-    file.path.endsWith('.md') ? true
-    : file.path.endsWith('.lua') ? false
-    : (throw 'Can only load a lua (.lua) or markdown (.md) file');
+    final st = StructureType.fromFile(file.path) ?? (
+      file.path.endsWith('.lua') ? null : throw 'Invalid load file'
+    );
 
     // Parse the code from the file
     final contents = file.readAsStringSync();
-    final code = isMarkdown ? Structure.parse(contents).getLuaCode() : contents;
+    final code = st == null ? contents : Structure.parse(contents, st).getLuaCode();
 
     final result = luaExecuteFile(lua, code, file);
     if (result is LuaFailure) throw result.error;

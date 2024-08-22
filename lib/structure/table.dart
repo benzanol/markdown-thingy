@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:notes/components/hscroll.dart';
 import 'package:notes/editor/note_editor.dart';
 import 'package:notes/structure/structure.dart';
+import 'package:notes/structure/structure_type.dart';
 
 
 class StructureTable extends StructureElement {
@@ -13,7 +14,7 @@ class StructureTable extends StructureElement {
   @override
   dynamic toJson() => {'type': 'table', 'rows': _table};
 
-  static (StructureTable, int)? maybeParse(List<String> lines, int line) {
+  static (StructureTable, int)? maybeParse(List<String> lines, int line, StructureType st) {
     int nextLine = line;
     while (nextLine < lines.length && lines[nextLine].startsWith('|')) {
       nextLine++;
@@ -38,7 +39,7 @@ class StructureTable extends StructureElement {
   }
 
   @override
-  String toText() => _table.map((line) => '| ${line.join(" | ")} |').join('\n');
+  String toText(StructureType st) => _table.map((line) => '| ${line.join(" | ")} |').join('\n');
 
   @override
   Widget widget(NoteEditor note) => _TableWidget(note, this);

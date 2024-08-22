@@ -74,7 +74,14 @@ flutter:
   fonts:
     - family: Iosevka
       fonts:
-       - asset: assets/fonts/iosevka/Iosevka-Regular.ttf
+       - asset: assets/fonts/iosevka/IosevkaFixed-Regular.ttf
+       # - asset: assets/fonts/iosevka/IosevkaFixed-Bold.ttf
+       #   weight: 700
+       # - asset: assets/fonts/iosevka/IosevkaFixed-Italic.ttf
+       #   style: italic
+       # - asset: assets/fonts/iosevka/IosevkaFixed-BoldItalic.ttf
+       #   weight: 700
+       #   style: italic
 
     - family: IbmPlexSans
       fonts:

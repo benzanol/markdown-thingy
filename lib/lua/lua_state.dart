@@ -19,18 +19,15 @@ LuaState getGlobalLuaState() {
 }
 
 
-void _loadLuaLibrary(LuaState lua, String filename, String global) {
+void _loadLuaLibrary(LuaState lua, String name) {
   lua.setTop(0);
-  lua.loadFile('./lua/$filename');
+  lua.loadString('$name = require "$name"');
   final result = lua.pCall(0, 1, 0);
   if (result != ThreadStatus.luaOk) {
     // ignore: avoid_print
-    print('Error loading library $filename: ${lua.toStr(-1)}');
+    print('Error loading library $name: ${lua.toStr(-1)}');
     return;
   }
-
-  // Set the global variable to the returned output
-  lua.setGlobal(global);
 }
 
 void _initializeGlobalTable(LuaState lua, String variable) {
@@ -67,20 +64,14 @@ LuaState initializeLuaState() {
 
   // Remove access to the filesystem
   lua.doString('loadfile = nil');
-  _stripLibFunctions(lua, 'io', keep: []);
   _stripLibFunctions(lua, 'os', keep: ['clock', 'difftime', 'date', 'time']);
-  lua.doString('io = { stdout=print }');
-
-  // Add debug placeholders
-  lua.doString('debug = {}');
-  lua.doString('debug.traceback   = function() return "" end');
-  lua.doString('debug.getinfo     = function() end');
-  lua.doString('debug.getupvalue  = function() end');
-  lua.doString('debug.upvaluejoin = function() end');
+  _stripLibFunctions(lua, 'io', keep: []);
+  lua.doString('io = {stdout=print}');
 
   lua.doString('package.path = "./lua/?.lua"');
-  _loadLuaLibrary(lua, 'ui.lua', 'Ui');
-  _loadLuaLibrary(lua, 'pl.lua', 'Pl');
+  _loadLuaLibrary(lua, 'debug');
+  _loadLuaLibrary(lua, 'Ui');
+  _loadLuaLibrary(lua, 'Pl');
 
   // Register dart functions
   registerLuaFunctions(lua, 'Lib');

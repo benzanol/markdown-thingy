@@ -6,10 +6,11 @@ import 'package:notes/extensions/save_scope.dart';
 import 'package:notes/lua/lua_result.dart';
 import 'package:notes/lua/utils.dart';
 import 'package:notes/structure/structure.dart';
+import 'package:notes/structure/structure_type.dart';
 
 
 const String extDirectory = 'extensions';
-const String extIndexFileName = 'index.md';
+const List<String> extIndexFileNames = ['index.md', 'index.org'];
 const String extsVariable = '*extensions*';
 
 const String extsScopeField = 'scope';
@@ -21,9 +22,9 @@ const String extsButtonsField = 'buttons';
 Directory? loadingExtension;
 
 
-void runExtensionCode(LuaState lua, Directory extDir, String code) {
+void runExtensionCode(LuaState lua, File indexFile, String code) {
+  final extDir = indexFile.parent;
   final extName = fileName(extDir);
-  final indexFile = File.fromUri(extDir.uri.resolve(extIndexFileName));
 
   loadingExtension = extDir;
   final result = saveLuaScope(lua, (lua) => luaExecuteFile(lua, code, indexFile));
@@ -43,15 +44,22 @@ Future<void> loadExtensions(LuaState lua, Directory rootDir) async {
   final subDirs = (await extensionsDir.list().toList()).whereType<Directory>();
   final maybeExtensions = (await Future.wait(
       subDirs.map((dir) async {
-          final indexFile = File.fromUri(dir.uri.resolve(extIndexFileName));
-          if (!(await indexFile.exists())) return null;
-          return (dir, await indexFile.readAsString());
+          final indexFile = extIndexFileNames
+          .map((name) => File.fromUri(dir.uri.resolve(name)))
+          .where((file) => file.existsSync())
+          .firstOrNull;
+
+          if (indexFile == null) return null;
+
+          final content = await indexFile.readAsString();
+          final st = StructureType.fromFile(indexFile.path)!;
+          return (indexFile, Structure.parse(content, st));
       })
   ));
 
   for (final maybeExt in maybeExtensions) {
     if (maybeExt == null) return;
-    final (extDir, content) = maybeExt;
-    runExtensionCode(lua, extDir, Structure.parse(content).getLuaCode());
+    final (indexFile, struct) = maybeExt;
+    runExtensionCode(lua, indexFile, struct.getLuaCode());
   }
 }

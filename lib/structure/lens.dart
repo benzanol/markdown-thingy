@@ -8,10 +8,7 @@ import 'package:notes/lua/lua_state.dart';
 import 'package:notes/lua/lua_ui.dart';
 import 'package:notes/lua/utils.dart';
 import 'package:notes/structure/structure.dart';
-
-
-final RegExp lensStartRegexp = RegExp(r'^#\+begin_lens ([a-zA-Z0-9]+)/([a-zA-Z0-9]+)$');
-final RegExp lensEndRegexp = RegExp(r'^#\+end_lens$');
+import 'package:notes/structure/structure_type.dart';
 
 
 class StructureLens extends StructureElement {
@@ -27,16 +24,19 @@ class StructureLens extends StructureElement {
   dynamic toJson() => {'type': 'lens', 'ext': lens.ext, 'name': lens.name, 'text': text};
 
   @override
-  String toText() => '#+begin_lens ${lens.ext}/${lens.name}\n$text\n#+end_lens';
+  String toText(StructureType st) => (
+    '${st.beginLens}${lens.ext}/${lens.name}\n$text\n${st.endLens}'
+  );
 
   @override
   Widget widget(NoteEditor note) => _LensRootWidget(note, this);
 
-  static (StructureLens, int)? maybeParse(List<String> lines, int line) {
-    final startMatch = lensStartRegexp.firstMatch(lines[line]);
+  static (StructureLens, int)? maybeParse(List<String> lines, int line, StructureType st) {
+    final startMatch = st.beginLensRegexp.firstMatch(lines[line]);
     if (startMatch == null) return null;
 
-    final endLine = lines.indexed.where((tup) => lensEndRegexp.hasMatch(tup.$2)).firstOrNull;
+    final endLine = lines.indexed.skip(line+1)
+    .where((tup) => st.endLensRegexp.hasMatch(tup.$2)).firstOrNull;
     if (endLine == null) return null;
 
     final lens = getLens(startMatch.group(1)!, startMatch.group(2)!);

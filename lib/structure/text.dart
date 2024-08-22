@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:notes/editor/editor_box.dart';
 import 'package:notes/editor/note_editor.dart';
 import 'package:notes/structure/structure.dart';
+import 'package:notes/structure/structure_type.dart';
 
 
 class StructureText extends StructureElement {
@@ -12,7 +13,7 @@ class StructureText extends StructureElement {
   dynamic toJson() => {'type': 'text', 'text': text};
 
   @override
-  String toText() => text;
+  String toText(StructureType st) => text;
 
   @override
   Widget widget(NoteEditor note) => EditorBoxField(

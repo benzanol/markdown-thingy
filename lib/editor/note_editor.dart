@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:notes/structure/structure.dart';
+import 'package:notes/structure/structure_type.dart';
 import 'package:notes/structure/text.dart';
 
 
@@ -19,8 +20,10 @@ class NoteEditor extends StatelessWidget {
   final bool isRaw;
   final Function(NoteEditor)? onUpdate;
 
+  late final _st = StructureType.fromFile(file.path);
   late final _NoteEditorWidget _childEditor = (
-    isRaw ? _RawNoteWidget(this, init) : _StructureNoteWidget(this, Structure.parse(init))
+    (isRaw || _st == null) ? _RawNoteWidget(this, init)
+    : _StructureNoteWidget(this, Structure.parse(init, _st), _st)
   );
 
   String toText() => _childEditor.toText();
@@ -59,7 +62,7 @@ class _RawNoteWidget extends StatelessWidget implements _NoteEditorWidget {
   final StructureText text;
 
   @override
-  String toText() => text.toText();
+  String toText() => text.text;
 
   @override
   Widget build(BuildContext context) => text.widget(note);
@@ -67,13 +70,14 @@ class _RawNoteWidget extends StatelessWidget implements _NoteEditorWidget {
 
 
 class _StructureNoteWidget extends StatefulWidget implements _NoteEditorWidget {
-  const _StructureNoteWidget(this.note, this.structure);
+  const _StructureNoteWidget(this.note, this.structure, this.st);
 
-  final Structure structure;
   final NoteEditor note;
+  final Structure structure;
+  final StructureType st;
 
   @override
-  String toText() => structure.toText();
+  String toText() => structure.toText(st);
 
   @override
   State<_StructureNoteWidget> createState() => _StructureNoteWidgetState();
@@ -100,7 +104,7 @@ class _StructureNoteWidgetState extends State<_StructureNoteWidget> {
               child: Text(head.$1, style: const TextStyle(fontSize: 30)),
             );
             if (isFolded) return [headWidget];
-            final contentsWidget = _StructureNoteWidget(widget.note, head.$2);
+            final contentsWidget = _StructureNoteWidget(widget.note, head.$2, widget.st);
             return [headWidget, contentsWidget];
         }),
       ],

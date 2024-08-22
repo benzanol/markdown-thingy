@@ -23,7 +23,15 @@ class _NoteHandlerState extends State<NoteHandler> {
 
   bool ready = false;
   bool raw = false;
-  late File note = widget.state.repoFile('index.md');
+  late File note = widget.state.repoFile(
+    ['index.md', 'index.org']
+    .where((f) => widget.state.repoFile(f).existsSync())
+    .firstOrNull
+    ?? (() {
+        widget.state.repoFile('index.md').createSync();
+        return 'index.md';
+    })()
+  );
 
   @override
   void initState() {
