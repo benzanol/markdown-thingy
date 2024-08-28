@@ -8,7 +8,8 @@ import 'package:notes/structure/structure_type.dart';
 
 
 class StructureText extends StructureElement {
-  final _textKey = GlobalKey();
+  final _textFieldKey = GlobalKey();
+  final _textWidgetKey = GlobalKey();
 
   StructureText(this.text);
   String text;
@@ -25,12 +26,12 @@ class StructureText extends StructureElement {
 
 
 class _TextSectionWidget extends StatelessWidget {
-  _TextSectionWidget(this.note, this.element);
+  _TextSectionWidget(this.note, this.element) : super(key: element._textWidgetKey);
   final NoteEditor note;
   final StructureText element;
 
   late final EditorBoxField fieldWidget = EditorBoxField(
-    key: element._textKey,
+    key: element._textFieldKey,
     init: element.text,
     onChange: (newText) {
       element.text = newText;

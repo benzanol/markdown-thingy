@@ -11,6 +11,8 @@ import 'package:notes/structure/text.dart';
 
 
 abstract class StructureElement implements ToJson {
+  final elementWidgetKey = GlobalKey();
+
   Widget widget(NoteEditor note);
   String toText(StructureType st);
 }

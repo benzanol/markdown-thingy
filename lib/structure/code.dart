@@ -12,6 +12,7 @@ import 'package:notes/structure/structure_type.dart';
 
 class StructureCode extends StructureElement {
   final _codeFieldKey = GlobalKey();
+  final _codeWidgetKey = GlobalKey();
 
   StructureCode(this.content, {required this.language});
   String content;
@@ -41,7 +42,7 @@ class StructureCode extends StructureElement {
 
 
 class _CodeSectionWidget extends StatefulWidget {
-  const _CodeSectionWidget(this.note, this.element);
+  _CodeSectionWidget(this.note, this.element) : super(key: element._codeWidgetKey);
   final NoteEditor note;
   final StructureCode element;
 
@@ -79,7 +80,7 @@ class _CodeSectionWidgetState extends State<_CodeSectionWidget> {
         ]
       ),
       EditorBoxCode(
-        key: widget.element._codeFieldKey,
+        key: ObjectKey(widget.element._codeFieldKey),
         init: content,
         language: language,
         style: const TextStyle(

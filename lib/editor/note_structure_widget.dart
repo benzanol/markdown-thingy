@@ -121,12 +121,11 @@ class StructureHeadingWidgetState extends State<StructureHeadingWidget> implemen
 
 
 class StructureElementWidget extends StatefulWidget {
-  const StructureElementWidget({
-      super.key,
+  StructureElementWidget({
       required this.note,
       required this.parent,
       required this.index,
-  });
+  }) : super(key: parent.content[index].elementWidgetKey);
 
   final NoteEditor note;
   final Structure parent;
