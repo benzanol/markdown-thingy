@@ -11,10 +11,11 @@ import 'package:notes/structure/structure_type.dart';
 
 
 class StructureCode extends StructureElement {
+  final _codeFieldKey = GlobalKey();
+
   StructureCode(this.content, {required this.language});
   String content;
   final String language;
-  final _codeFieldKey = GlobalKey();
 
   @override
   dynamic toJson() => {'type': 'code', 'content': content, 'language': language};

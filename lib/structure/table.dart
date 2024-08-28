@@ -3,12 +3,15 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:notes/components/hscroll.dart';
 import 'package:notes/editor/actions.dart';
+import 'package:notes/editor/builtin_actions.dart';
 import 'package:notes/editor/note_editor.dart';
 import 'package:notes/structure/structure.dart';
 import 'package:notes/structure/structure_type.dart';
 
 
 class StructureTable extends StructureElement {
+  final _tableKey = GlobalKey();
+
   StructureTable(this._table);
   final List<List<String>> _table;
 
@@ -48,7 +51,7 @@ class StructureTable extends StructureElement {
 
 
 class _TableWidget extends StatefulWidget {
-  const _TableWidget(this.note, this.element);
+  _TableWidget(this.note, this.element) : super(key: element._tableKey);
   final NoteEditor note;
   final StructureTable element;
 
@@ -57,39 +60,45 @@ class _TableWidget extends StatefulWidget {
 }
 
 class _TableWidgetState extends State<_TableWidget> {
-  (int, int)? cursor;
+  late List<List<TextField>> fields = _createTableWidget();
+  List<List<TextField>> _createTableWidget() => (
+    widget.element._table.indexed.map((row) => (
+        row.$2.indexed.map((cell) => TextField(
+            controller: TextEditingController(text: cell.$2),
+            focusNode: FocusNode(),
+            onChanged: (content) {
+              widget.element._table[row.$1][cell.$1] = content;
+              widget.note.update();
+            },
+            maxLines: null,
+            decoration: const InputDecoration(
+              isDense: true,
+              contentPadding: EdgeInsets.all(8),
+              border: InputBorder.none,
+            ),
+
+            onTap: () => widget.note.focus(FocusableTable(
+                rows: widget.element._table,
+                row: row.$1,
+                col: cell.$1,
+                focusCell: (row, col) => setState(() {
+                    fields = _createTableWidget();
+                    fields[row][col].focusNode?.requestFocus();
+                }),
+            )),
+        )).toList()
+    )).toList()
+  );
 
   @override
   Widget build(BuildContext context) => Container(
     color: Theme.of(context).colorScheme.surface,
     child: Hscroll(child: Table(
-        border: TableBorder.all(),
         defaultColumnWidth: const IntrinsicColumnWidth(),
-        children: widget.element._table.indexed.map((row) => TableRow(
-            children: row.$2.indexed.map((cell) => TableCell(
-                child: TextField(
-                  controller: TextEditingController(text: cell.$2),
-                  onChanged: (content) {
-                    widget.element._table[row.$1][cell.$1] = content;
-                    widget.note.update();
-                  },
-                  maxLines: null,
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.all(8),
-                    border: InputBorder.none,
-                  ),
-
-                  onTap: () => widget.note.focus(FocusableTable(
-                      rows: widget.element._table,
-                      row: row.$1,
-                      col: cell.$1,
-                      afterActionFn: (row, col) => setState(() => cursor = (row, col)),
-                  )),
-                  autofocus: (row.$1, cell.$1) == cursor,
-                ),
-            )).toList(),
-        )).toList(),
+        border: TableBorder.all(),
+        children: fields.map((fields) => TableRow(
+            children: fields.map((field) => TableCell(child: field)).toList()
+        )).toList()
     )),
   );
 }
@@ -100,30 +109,18 @@ class FocusableTable extends FocusableElement {
       required this.rows,
       required this.row,
       required this.col,
-      required this.afterActionFn,
+      required this.focusCell,
   });
-  final void Function(int row, int col) afterActionFn;
+  final void Function(int row, int col) focusCell;
   List<List<String>> rows;
   int row;
   int col;
 
   @override
-  void afterAction() => afterActionFn(row, col);
+  void afterAction() => focusCell(row, col);
 
   @override
   EditorActionsBar actions() => (
-    EditorActionsBar<FocusableTable>(_tableActions, this)
+    EditorActionsBar<FocusableTable>(tableActions, this)
   );
 }
-
-
-final List<EditorAction<FocusableTable>> _tableActions = [
-  iconAction(Icons.dns, (context, table) {
-      table.rows.insert(table.row + 1, List.generate(table.rows[0].length, (_) => ""));
-      table.row++;
-  }),
-  iconAction(Icons.delete, (context, table) {
-      table.rows.removeAt(table.row);
-      if (table.row >= table.rows.length) table.row--;
-  }),
-];

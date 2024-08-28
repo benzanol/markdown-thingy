@@ -62,9 +62,9 @@ class NoteEditor extends State<NoteEditorWidget> {
 
   // Whatever is currently focused
   FocusableElement? _focused;
-  void focus(FocusableElement newFocused) {
+  void focus(FocusableElement? newFocused) {
     _focused?.onUnfocus();
-    newFocused.onFocus();
+    newFocused?.onFocus();
     _focused = newFocused;
     setState(() {});
   }
@@ -98,11 +98,14 @@ class NoteEditor extends State<NoteEditorWidget> {
       ),
     );
 
-    return Column(
-      children: [
-        Expanded(child: noteBody),
-        actionsBar()?.widget(this) ?? Container(),
-      ],
+    return GestureDetector(
+      onTap: () => focus(null),
+      child: Column(
+        children: [
+          Expanded(child: noteBody),
+          actionsBar()?.widget(this) ?? Container(),
+        ],
+      ),
     );
   }
 }

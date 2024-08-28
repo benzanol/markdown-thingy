@@ -6,6 +6,7 @@ import 'package:notes/components/prompts.dart';
 import 'package:notes/editor/actions.dart';
 import 'package:notes/editor/note_structure_widget.dart';
 import 'package:notes/structure/structure.dart';
+import 'package:notes/structure/table.dart';
 
 
 void _surroundSelection(
@@ -64,4 +65,16 @@ final List<EditorAction<StructureHeadingWidgetState>> headingActions = [
       head.struct.headings.insert(0, newHeading());
     },
   ),
+];
+
+
+final List<EditorAction<FocusableTable>> tableActions = [
+  iconAction(Icons.dns, (context, table) {
+      table.rows.insert(table.row + 1, List.generate(table.rows[0].length, (_) => ""));
+      table.row++;
+  }),
+  iconAction(Icons.delete, (context, table) {
+      table.rows.removeAt(table.row);
+      if (table.row >= table.rows.length) table.row--;
+  }),
 ];
