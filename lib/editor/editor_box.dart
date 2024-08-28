@@ -27,70 +27,97 @@ class EditorBoxField extends StatefulWidget {
   const EditorBoxField({
       super.key,
       required this.init,
-      this.onChange,
       this.style,
-      this.language,
+      this.onChange,
+      this.onEnter,
   });
   final String init;
-  final Function(String)? onChange;
   final TextStyle? style;
-  final String? language;
+
+  final Function(String)? onChange;
+  final Function(TextEditingController, FocusNode)? onEnter;
 
   @override
   State<EditorBoxField> createState() => _EditorBoxFieldState();
 }
 
 class _EditorBoxFieldState extends State<EditorBoxField> {
-  late final TextEditingController _controller = (
-    widget.language == null ? TextEditingController(text: widget.init)
-    : CodeController(
-      text: widget.init,
-      language: allLanguages[widget.language],
-    )
+  late final controller = TextEditingController(text: widget.init);
+  final focusNode = FocusNode();
+  late final field = TextField(
+    controller: controller,
+    focusNode: focusNode,
+    style: widget.style,
+    onChanged: widget.onChange,
+    onTap: () => widget.onEnter?.call(controller, focusNode),
+
+    maxLines: null,
+    decoration: const InputDecoration(
+      isDense: true,
+      border: InputBorder.none,
+      contentPadding: EdgeInsets.all(textPadding),
+    ),
   );
 
   @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  Widget build(BuildContext context) => Container(
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surface,
+      border: Border.all(color: borderColor),
+    ),
+    child: field,
+  );
+}
+
+
+class EditorBoxCode extends StatefulWidget {
+  const EditorBoxCode({
+      super.key,
+      required this.init,
+      required this.language,
+      this.style,
+      this.onChange,
+      this.onEnter,
+  });
+  final String init;
+  final String language;
+  final TextStyle? style;
+
+  final Function(String)? onChange;
+  final Function(CodeController, FocusNode)? onEnter;
 
   @override
-  Widget build(BuildContext context) {
-    final controller = _controller;
-    final inner = (
-      controller is CodeController
-      ? CodeTheme(
-        data: const CodeThemeData(styles: ideaTheme),
-        child: CodeField(
-          controller: controller,
-          onChanged: widget.onChange,
-          textStyle: widget.style,
+  State<EditorBoxCode> createState() => _EditorBoxCodeState();
+}
 
-          // Any less wide and triple digit numbers will wrap to the next line
-          lineNumberStyle: const LineNumberStyle(width: 35, margin: 5),
-        ),
-      )
-      : TextField(
-        controller: controller,
-        onChanged: widget.onChange,
-        style: widget.style,
+class _EditorBoxCodeState extends State<EditorBoxCode> {
+  _EditorBoxCodeState();
 
-        maxLines: null,
-        decoration: const InputDecoration(
-          isDense: true,
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.all(textPadding),
-        ),
-      )
-    );
+  late final controller = CodeController(
+    text: widget.init,
+    language: allLanguages[widget.language],
+  );
+  final focusNode = FocusNode();
+  late final field = CodeTheme(
+    data: const CodeThemeData(styles: ideaTheme),
+    child: CodeField(
+      controller: controller,
+      focusNode: focusNode,
+      textStyle: widget.style,
+      onChanged: widget.onChange,
+      onTap: () => widget.onEnter?.call(controller, focusNode),
 
-    return Container(
+      // Any less wide and triple digit numbers will wrap to the next line
+      lineNumberStyle: const LineNumberStyle(width: 35, margin: 5),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) => Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         border: Border.all(color: borderColor),
       ),
-      child: inner,
+      child: field,
     );
-  }
 }

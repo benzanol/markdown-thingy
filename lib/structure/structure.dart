@@ -17,6 +17,7 @@ abstract class StructureElement implements ToJson {
 
 class Structure implements ToJson {
   Structure({required this.props, required this.content, required this.headings});
+  Structure.empty() : props = {}, content = [], headings = [];
   Map<String, String> props;
   List<StructureElement> content;
   List<(String, Structure)> headings;

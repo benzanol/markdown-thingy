@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:notes/editor/actions.dart';
+import 'package:notes/editor/note_structure_widget.dart';
 import 'package:notes/structure/structure.dart';
 import 'package:notes/structure/structure_type.dart';
 import 'package:notes/structure/text.dart';
@@ -12,28 +15,75 @@ const double textPadding = 8;
 const Color borderColor = Colors.grey;
 
 
-class NoteEditor extends StatelessWidget {
-  NoteEditor({super.key, required this.file, required this.init, this.isRaw = false, this.onUpdate});
+abstract class FocusableElement {
+  EditorActionsBar actions();
+  void onFocus() {}
+  void onUnfocus() {}
+  void beforeAction() {}
+  void afterAction() {}
+}
 
+
+class NoteEditorWidget extends StatefulWidget {
+  const NoteEditorWidget({
+      super.key,
+      required this.file,
+      required this.init,
+      this.isRaw = false,
+      this.onUpdate
+  });
   final File file;
   final String init;
   final bool isRaw;
   final Function(NoteEditor)? onUpdate;
 
-  late final _st = StructureType.fromFile(file.path);
-  late final _NoteEditorWidget _childEditor = (
-    (isRaw || _st == null) ? _RawNoteWidget(this, init)
-    : _StructureNoteWidget(this, Structure.parse(init, _st), _st)
+  @override
+  State<NoteEditorWidget> createState() => NoteEditor();
+}
+
+class NoteEditor extends State<NoteEditorWidget> {
+  NoteEditor();
+
+  File get file => widget.file;
+  String get init => widget.init;
+  bool get isRaw => widget.isRaw;
+  Function(NoteEditor)? get onUpdate => widget.onUpdate;
+
+  late final StructureType st = StructureType.fromFile(file.path)!;
+  late final Structure struct = (
+    !isRaw ? Structure.parse(init, st)
+    : Structure(props: {}, headings: [], content: [StructureText(init)])
   );
+  late final _bodyWidget = StructureWidget(note: this, structure: struct, st: st);
 
-  String toText() => _childEditor.toText();
-
+  String toText() => struct.toText(st);
   void update() => onUpdate?.call(this);
+
+
+  // Whatever is currently focused
+  FocusableElement? _focused;
+  void focus(FocusableElement newFocused) {
+    _focused?.onUnfocus();
+    newFocused.onFocus();
+    _focused = newFocused;
+    setState(() {});
+  }
+
+  Future<void> performAction(FutureOr<dynamic> Function() doAction) async {
+    // Retain focus
+    _focused?.beforeAction();
+    await doAction();
+    _focused?.afterAction();
+    update();
+  }
+
+  EditorActionsBar? actionsBar() => _focused?.actions();
+
 
   @override
   Widget build(BuildContext context) {
     final scrollController = ScrollController();
-    return Container(
+    final noteBody = Container(
       alignment: Alignment.topCenter,
       color: Theme.of(context).colorScheme.secondaryContainer,
       child: Scrollbar(
@@ -43,70 +93,15 @@ class NoteEditor extends StatelessWidget {
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: hMargin, vertical: vSpace),
           controller: scrollController,
-          child: _childEditor,
+          child: _bodyWidget,
         ),
-      )
+      ),
     );
-  }
-}
 
-
-abstract class _NoteEditorWidget implements Widget { String toText(); }
-
-
-class _RawNoteWidget extends StatelessWidget implements _NoteEditorWidget {
-  _RawNoteWidget(this.note, String init)
-  : text = StructureText(init);
-
-  final NoteEditor note;
-  final StructureText text;
-
-  @override
-  String toText() => text.text;
-
-  @override
-  Widget build(BuildContext context) => text.widget(note);
-}
-
-
-class _StructureNoteWidget extends StatefulWidget implements _NoteEditorWidget {
-  const _StructureNoteWidget(this.note, this.structure, this.st);
-
-  final NoteEditor note;
-  final Structure structure;
-  final StructureType st;
-
-  @override
-  String toText() => structure.toText(st);
-
-  @override
-  State<_StructureNoteWidget> createState() => _StructureNoteWidgetState();
-}
-
-class _StructureNoteWidgetState extends State<_StructureNoteWidget> {
-  Set<String> foldedHeadings = {};
-
-  @override
-  Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ...widget.structure.content.expand((elem) => [
-            const SizedBox(height: vSpace),
-            elem.widget(widget.note),
-        ]).skip(1),
-        ...widget.structure.headings.expand((head) {
-            final isFolded = foldedHeadings.contains(head.$1);
-            final headWidget = GestureDetector(
-              onTap: isFolded
-              ? () => setState(() => foldedHeadings.remove(head.$1))
-              : () => setState(() => foldedHeadings.add(head.$1)),
-              child: Text(head.$1, style: const TextStyle(fontSize: 30)),
-            );
-            if (isFolded) return [headWidget];
-            final contentsWidget = _StructureNoteWidget(widget.note, head.$2, widget.st);
-            return [headWidget, contentsWidget];
-        }),
+        Expanded(child: noteBody),
+        actionsBar()?.widget(this) ?? Container(),
       ],
     );
   }

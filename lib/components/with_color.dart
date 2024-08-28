@@ -15,7 +15,10 @@ class WithColor extends StatelessWidget {
     final c = color ?? scheme?.call(theme.colorScheme) ?? theme.colorScheme.onSurface;
 
     return Theme(
-      data: theme.copyWith(colorScheme: theme.colorScheme.copyWith(onSurface: c)),
+      data: theme.copyWith(
+        colorScheme: theme.colorScheme.copyWith(onSurface: c),
+        iconTheme: theme.iconTheme.copyWith(color: c),
+      ),
       child: DefaultTextStyle(
         style: textStyle.style.copyWith(color: c),
         child: child,

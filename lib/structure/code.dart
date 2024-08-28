@@ -1,4 +1,7 @@
+import 'package:code_text_field/code_text_field.dart';
 import 'package:flutter/material.dart';
+import 'package:notes/editor/actions.dart';
+import 'package:notes/editor/builtin_actions.dart';
 import 'package:notes/editor/editor_box.dart';
 import 'package:notes/editor/note_editor.dart';
 import 'package:notes/lua/lua_result.dart';
@@ -11,6 +14,7 @@ class StructureCode extends StructureElement {
   StructureCode(this.content, {required this.language});
   String content;
   final String language;
+  final _codeFieldKey = GlobalKey();
 
   @override
   dynamic toJson() => {'type': 'code', 'content': content, 'language': language};
@@ -73,18 +77,36 @@ class _CodeSectionWidgetState extends State<_CodeSectionWidget> {
           ),
         ]
       ),
-      EditorBoxField(
+      EditorBoxCode(
+        key: widget.element._codeFieldKey,
         init: content,
         language: language,
-        onChange: (newText) {
-          widget.element.content = newText;
-          widget.note.update();
-        },
         style: const TextStyle(
           fontFamily: 'Iosevka',
           fontFeatures: [FontFeature.fractions()],
         ),
+
+        onChange: (newText) {
+          widget.element.content = newText;
+          widget.note.update();
+        },
+        onEnter: (c, fn) => widget.note.focus(_FocusableCode(c, fn)),
       ),
       result?.widget() ?? Container(),
   ]);
+}
+
+
+class _FocusableCode extends FocusableElement {
+  _FocusableCode(this.controller, this.focusNode);
+  final CodeController controller;
+  final FocusNode focusNode;
+
+  @override
+  EditorActionsBar actions() => (
+    EditorActionsBar<CodeController>(codeActions, controller)
+  );
+
+  @override
+  void beforeAction() => focusNode.requestFocus();
 }

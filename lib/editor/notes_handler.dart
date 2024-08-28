@@ -74,12 +74,9 @@ class _NoteHandlerState extends State<NoteHandler> {
           }
           final data = snapshot.data;
           if (data == null) return const Text('Null data');
-          return NoteEditor(
-            file: note,
-            init: data,
-            onUpdate: (editor) => widget.state.markModified(note, editor),
-            isRaw: raw,
-          );
+
+          void onUpdate(editor) => widget.state.markModified(note, editor);
+          return NoteEditorWidget(file: note, init: data, onUpdate: onUpdate, isRaw: raw);
         },
       ),
     );
