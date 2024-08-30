@@ -92,6 +92,7 @@ final List<EditorAction<StructureHeadingWidgetState>> headingActions = [
       widget: action.widget,
       onPress: (ps) => action.onPress(ps.withObj((newElem) {
             ps.obj.struct.content.insert(0, newElem);
+            ps.newFocusedElement = newElem;
       })),
   )),
 ];
@@ -102,7 +103,7 @@ final List<EditorAction<StructureElementWidgetState>> elementActions = [
         final content = ps.obj.parent.content;
         content.removeAt(ps.obj.index);
         if (content.isNotEmpty) {
-          // ps.newFocus = content[min(content.length-1, ps.obj.index)].elementWidgetKey.currentState as Focusable?;
+          ps.newFocusedElement = content[min(content.length-1, ps.obj.index)];
         }
       }
   }),
@@ -110,6 +111,7 @@ final List<EditorAction<StructureElementWidgetState>> elementActions = [
       widget: action.widget,
       onPress: (ps) => action.onPress(ps.withObj((newElem) {
             ps.obj.parent.content.insert(ps.obj.index+1, newElem);
+            ps.newFocusedElement = newElem;
       })),
   )),
 ];

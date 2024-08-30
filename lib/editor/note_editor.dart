@@ -52,19 +52,23 @@ class NoteEditor extends State<NoteEditorWidget> {
 
   // Whatever is currently focused
   Focusable? focused;
-  void focus(Focusable? newFocused) {
-    focused = newFocused;
-    setState(() {});
-  }
+  StructureElement? focusedElement;
+  void focus(Focusable? newFocus) => setState(() => focused = newFocus);
 
   Future<void> performAction<T>(EditorAction<T> action, T obj) async {
     final props = EditorActionProps(obj: obj, context: context);
     await action.onPress(props);
 
     final newFocus = props.newFocus;
-    if (newFocus != null) focus(newFocus);
+    if (newFocus != null) focused = newFocus;
 
-    if (newFocus != null || focused?.shouldRefresh == true) {
+    final newFocusElem = props.newFocusedElement;
+    if (newFocusElem != null) {
+      focused = null;
+      focusedElement = newFocusElem;
+    }
+
+    if (newFocus != null || newFocusElem != null || focused?.shouldRefresh == true) {
       setState(() {});
     }
 
@@ -96,7 +100,9 @@ class NoteEditor extends State<NoteEditorWidget> {
       child: Column(
         children: [
           Expanded(child: noteBody),
-          focused?.actions.widget(this) ?? Container(),
+          // Wrap in a builder so that the action bar gets created AFTER a
+          // focusedElement gets initialized
+          Builder(builder: (context) => focused?.actions.widget(this) ?? Container()),
         ],
       ),
     );

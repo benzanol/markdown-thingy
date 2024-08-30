@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:notes/components/foreground_svg.dart';
 import 'package:notes/components/with_color.dart';
 import 'package:notes/editor/note_editor.dart';
+import 'package:notes/structure/structure.dart';
 
 
 abstract class Focusable {
@@ -20,6 +21,7 @@ class EditorActionProps<Param> {
   final BuildContext context;
 
   Focusable? newFocus;
+  StructureElement? newFocusedElement;
 
   EditorActionProps<T> withObj<T>(T newObj) => EditorActionProps(
     obj: newObj,

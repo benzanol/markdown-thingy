@@ -152,15 +152,21 @@ class StructureElementWidgetState extends State<StructureElementWidget> implemen
   @override void afterAction() {}
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    behavior: HitTestBehavior.opaque,
-    onTap: () => note.focus(this),
-    child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: vSpace/2),
-      child: Container(
-        decoration: (note.focused == this ? focusedDecoration : null),
-        child: element.widget(note, this),
+  Widget build(BuildContext context) {
+    if (element == note.focusedElement) {
+      note.focused = this;
+      note.focusedElement = null;
+    }
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => note.focus(this),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: vSpace/2),
+        child: Container(
+          decoration: (note.focused == this ? focusedDecoration : null),
+          child: element.widget(note, this),
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
