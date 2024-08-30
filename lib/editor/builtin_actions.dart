@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'package:notes/components/prompts.dart';
 import 'package:notes/editor/actions.dart';
 import 'package:notes/editor/structure_widget.dart';
@@ -46,13 +47,37 @@ final List<EditorAction<FocusableCode>> codeActions = [
 
 final List<EditorAction<FocusableTable>> tableActions = [
   textAction('ESC', (ps) => ps.newFocus = ps.obj.state.widget.parent),
-  iconAction(Icons.dns, (ps) {
+
+  iconAction(MdiIcons.tableRowPlusBefore, (ps) {
+      ps.obj.rows.insert(ps.obj.row, List.generate(ps.obj.rows[0].length, (_) => ""));
+  }),
+  iconAction(MdiIcons.tableRowPlusAfter, (ps) {
       ps.obj.rows.insert(ps.obj.row + 1, List.generate(ps.obj.rows[0].length, (_) => ""));
       ps.obj.row++;
   }),
-  iconAction(Icons.delete, (ps) {
+  iconAction(MdiIcons.tableRowRemove, (ps) {
+      if (ps.obj.rows.length == 1) return;
       ps.obj.rows.removeAt(ps.obj.row);
       if (ps.obj.row >= ps.obj.rows.length) ps.obj.row--;
+  }),
+
+  iconAction(MdiIcons.tableColumnPlusBefore, (ps) {
+      for (final row in ps.obj.rows) {
+        row.insert(ps.obj.col, "");
+      }
+  }),
+  iconAction(MdiIcons.tableColumnPlusAfter, (ps) {
+      for (final row in ps.obj.rows) {
+        row.insert(ps.obj.col+1, "");
+      }
+      ps.obj.col++;
+  }),
+  iconAction(MdiIcons.tableColumnRemove, (ps) {
+      if (ps.obj.rows[0].length == 1) return;
+      for (final row in ps.obj.rows) {
+        row.removeAt(ps.obj.col);
+      }
+      if (ps.obj.col >= ps.obj.rows[0].length) ps.obj.col--;
   }),
 ];
 
@@ -60,7 +85,7 @@ final List<EditorAction<FocusableTable>> tableActions = [
 final List<EditorAction<Function(StructureElement)>> elementBuilders = [
   iconAction(Icons.code, (ps) => ps.obj(StructureCode('', language: 'lua'))),
   iconAction(Icons.description, (ps) => ps.obj(StructureText(''))),
-  iconAction(Icons.calendar_month, (ps) => ps.obj(StructureTable([['', ''], ['', '']]))),
+  iconAction(MdiIcons.table, (ps) => ps.obj(StructureTable([['', ''], ['', '']]))),
 ];
 
 
@@ -110,10 +135,10 @@ final List<EditorAction<StructureElementWidgetState>> elementActions = [
         final content = ps.obj.parent.content;
         content.removeAt(ps.obj.index);
         if (content.isEmpty) {
-            // Go to the heading (if it exists)
-            ps.newFocusedHeading = ps.obj.widget.parent.parent?.heading;
-          } else {
-            // Go to the previous element
+          // Go to the heading (if it exists)
+          ps.newFocusedHeading = ps.obj.widget.parent.parent?.heading;
+        } else {
+          // Go to the previous element
           ps.newFocusedElement = content[min(content.length-1, ps.obj.index)];
         }
       }
