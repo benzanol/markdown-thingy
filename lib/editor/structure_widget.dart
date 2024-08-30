@@ -65,7 +65,8 @@ class StructureHeadingWidgetState extends State<StructureHeadingWidget> implemen
   Structure get parent => widget.parent.structure;
   int get index => widget.index;
   int get depth => widget.depth;
-  String get title => parent.headings[index].title;
+  StructureHeading get heading => parent.headings[index];
+  String get title => heading.title;
   Structure get struct => parent.headings[index].body;
 
   bool isFolded = false;
@@ -76,6 +77,11 @@ class StructureHeadingWidgetState extends State<StructureHeadingWidget> implemen
 
   @override
   Widget build(BuildContext context) {
+    if (heading == note.focusedHeading) {
+      note.focused = this;
+      note.focusedHeading = null;
+    }
+
     final headWidget = GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => note.focus(this),

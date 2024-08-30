@@ -22,6 +22,7 @@ class EditorActionProps<Param> {
 
   Focusable? newFocus;
   StructureElement? newFocusedElement;
+  StructureHeading? newFocusedHeading;
 
   EditorActionProps<T> withObj<T>(T newObj) => EditorActionProps(
     obj: newObj,

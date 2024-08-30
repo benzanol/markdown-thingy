@@ -64,15 +64,20 @@ final List<EditorAction<Function(StructureElement)>> elementBuilders = [
 ];
 
 
-StructureHeading newHeading() => StructureHeading(
-  title: '${Random().nextInt(10000)}',
+StructureHeading createHeading() => StructureHeading(
+  title: 'Untitled Heading',
   body: Structure.empty(),
 );
 
 final List<EditorAction<StructureHeadingWidgetState>> headingActions = [
   iconAction(Icons.delete, (ps) async {
       if (await promptConfirmation(ps.context, 'Delete ${ps.obj.title}?')) {
-        ps.obj.parent.headings.removeAt(ps.obj.index);
+        final headings = ps.obj.parent.headings;
+        headings.removeAt(ps.obj.index);
+        // Select the next heading
+        if (headings.isNotEmpty) {
+          ps.newFocusedHeading = headings[min(headings.length-1, ps.obj.index)];
+        }
       }
   }),
   iconAction(Icons.edit, (ps) async {
@@ -82,11 +87,13 @@ final List<EditorAction<StructureHeadingWidgetState>> headingActions = [
       }
   }),
   iconAction(Icons.title, (ps) {
-      ps.obj.parent.headings.insert(ps.obj.index + 1, newHeading());
+      final heading = createHeading();
+      ps.obj.parent.headings.insert(ps.obj.index + 1, heading);
+      ps.newFocusedHeading = heading;
   }),
   iconAction(
     Icons.format_indent_increase,
-    (ps) => ps.obj.struct.headings.insert(0, newHeading()),
+    (ps) => ps.obj.struct.headings.insert(0, createHeading()),
   ),
   ...elementBuilders.map((action) => EditorAction(
       widget: action.widget,
@@ -102,7 +109,11 @@ final List<EditorAction<StructureElementWidgetState>> elementActions = [
       if (await promptConfirmation(ps.context, 'Delete element?')) {
         final content = ps.obj.parent.content;
         content.removeAt(ps.obj.index);
-        if (content.isNotEmpty) {
+        if (content.isEmpty) {
+            // Go to the heading (if it exists)
+            ps.newFocusedHeading = ps.obj.widget.parent.parent?.heading;
+          } else {
+            // Go to the previous element
           ps.newFocusedElement = content[min(content.length-1, ps.obj.index)];
         }
       }

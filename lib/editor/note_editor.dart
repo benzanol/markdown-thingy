@@ -53,22 +53,25 @@ class NoteEditor extends State<NoteEditorWidget> {
   // Whatever is currently focused
   Focusable? focused;
   StructureElement? focusedElement;
+  StructureHeading? focusedHeading;
   void focus(Focusable? newFocus) => setState(() => focused = newFocus);
 
   Future<void> performAction<T>(EditorAction<T> action, T obj) async {
     final props = EditorActionProps(obj: obj, context: context);
     await action.onPress(props);
 
-    final newFocus = props.newFocus;
-    if (newFocus != null) focused = newFocus;
-
-    final newFocusElem = props.newFocusedElement;
-    if (newFocusElem != null) {
+    if (props.newFocus != null) focused = props.newFocus;
+    if (props.newFocusedElement != null) {
       focused = null;
-      focusedElement = newFocusElem;
+      focusedElement = props.newFocusedElement;
+    }
+    if (props.newFocusedHeading != null) {
+      focused = null;
+      focusedHeading = props.newFocusedHeading;
     }
 
-    if (newFocus != null || newFocusElem != null || focused?.shouldRefresh == true) {
+    final focusChanged = (props.newFocus ?? props.newFocusedElement ?? props.newFocusedHeading) != null;
+    if (focusChanged || focused?.shouldRefresh == true) {
       setState(() {});
     }
 
