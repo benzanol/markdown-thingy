@@ -1,17 +1,17 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:notes/components/global_value_key.dart';
 import 'package:notes/components/hscroll.dart';
 import 'package:notes/editor/actions.dart';
 import 'package:notes/editor/builtin_actions.dart';
 import 'package:notes/editor/note_editor.dart';
+import 'package:notes/editor/structure_widget.dart';
 import 'package:notes/structure/structure.dart';
 import 'package:notes/structure/structure_type.dart';
 
 
 class StructureTable extends StructureElement {
-  final _tableKey = GlobalKey();
-
   StructureTable(this._table);
   final List<List<String>> _table;
 
@@ -46,20 +46,27 @@ class StructureTable extends StructureElement {
   String toText(StructureType st) => _table.map((line) => '| ${line.join(" | ")} |').join('\n');
 
   @override
-  Widget widget(NoteEditor note) => _TableWidget(note, this);
+  Widget widget(note, parent) => _TableWidget(note, this, parent);
 }
 
 
 class _TableWidget extends StatefulWidget {
-  _TableWidget(this.note, this.element) : super(key: element._tableKey);
+  _TableWidget(this.note, this.element, this.parent)
+  : super(key: GlobalValueKey((note, element, 'table')));
   final NoteEditor note;
   final StructureTable element;
+  final StructureElementWidgetState parent;
 
   @override
-  State<_TableWidget> createState() => _TableWidgetState();
+  State<_TableWidget> createState() => TableWidgetState();
 }
 
-class _TableWidgetState extends State<_TableWidget> {
+class TableWidgetState extends State<_TableWidget> {
+  void focusCell(int row, int col) => setState(() {
+      fields = _createTableWidget();
+      fields[row][col].focusNode?.requestFocus();
+  });
+
   late List<List<TextField>> fields = _createTableWidget();
   List<List<TextField>> _createTableWidget() => (
     widget.element._table.indexed.map((row) => (
@@ -77,15 +84,9 @@ class _TableWidgetState extends State<_TableWidget> {
               border: InputBorder.none,
             ),
 
-            onTap: () => widget.note.focus(FocusableTable(
-                rows: widget.element._table,
-                row: row.$1,
-                col: cell.$1,
-                focusCell: (row, col) => setState(() {
-                    fields = _createTableWidget();
-                    fields[row][col].focusNode?.requestFocus();
-                }),
-            )),
+            onTap: () => widget.note.focus(
+              FocusableTable(state: this, row: row.$1, col: cell.$1)
+            ),
         )).toList()
     )).toList()
   );
@@ -97,30 +98,26 @@ class _TableWidgetState extends State<_TableWidget> {
         defaultColumnWidth: const IntrinsicColumnWidth(),
         border: TableBorder.all(),
         children: fields.map((fields) => TableRow(
-            children: fields.map((field) => TableCell(child: field)).toList()
+            children: fields.map((field) => TableCell(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 70),
+                  child: field,
+                )
+            )).toList()
         )).toList()
     )),
   );
 }
 
 
-class FocusableTable extends FocusableElement {
-  FocusableTable({
-      required this.rows,
-      required this.row,
-      required this.col,
-      required this.focusCell,
-  });
-  final void Function(int row, int col) focusCell;
-  List<List<String>> rows;
+class FocusableTable extends Focusable {
+  FocusableTable({required this.state, required this.row, required this.col});
+  TableWidgetState state;
   int row;
   int col;
+  get rows => state.widget.element._table;
 
-  @override
-  void afterAction() => focusCell(row, col);
-
-  @override
-  EditorActionsBar actions() => (
-    EditorActionsBar<FocusableTable>(tableActions, this)
-  );
+  @override bool get shouldRefresh => true;
+  @override get actions => EditorActionsBar<FocusableTable>(tableActions, this);
+  @override void afterAction() => state.focusCell(row, col);
 }

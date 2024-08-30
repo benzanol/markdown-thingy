@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:notes/editor/note_editor.dart';
+import 'package:notes/editor/structure_widget.dart';
 import 'package:notes/extensions/lenses.dart';
 import 'package:notes/lua/lua_object.dart';
 import 'package:notes/lua/to_lua.dart';
@@ -11,10 +12,20 @@ import 'package:notes/structure/text.dart';
 
 
 abstract class StructureElement implements ToJson {
-  final elementWidgetKey = GlobalKey();
-
-  Widget widget(NoteEditor note);
   String toText(StructureType st);
+  Widget widget(NoteEditor note, StructureElementWidgetState parent);
+}
+
+class StructureHeading implements ToJson {
+  StructureHeading({required this.title, required this.body});
+  String title;
+  Structure body;
+
+  @override
+  dynamic toJson() => {
+    'title': title,
+    ...body.toJson(),
+  };
 }
 
 class Structure implements ToJson {
@@ -22,13 +33,13 @@ class Structure implements ToJson {
   Structure.empty() : props = {}, content = [], headings = [];
   Map<String, String> props;
   List<StructureElement> content;
-  List<(String, Structure)> headings;
+  List<StructureHeading> headings;
 
   @override
   Map<String, dynamic> toJson() => {
     'props': props,
     'content': content,
-    'headings': headings.map((h) => {'title': h.$1, ...h.$2.toJson()}).toList()
+    'headings': headings,
   };
 
   String toText(StructureType st) {
@@ -55,19 +66,19 @@ class Structure implements ToJson {
     }
 
     // Write the headings
-    for (final (title, body) in headings) {
+    for (final head in headings) {
       buf.write(st.headingPrefixChar * (level+1));
       buf.write(' ');
-      buf.write(title);
+      buf.write(head.title);
       buf.write('\n');
-      body._write(buf, st, level: level + 1);
+      head.body._write(buf, st, level: level + 1);
     }
   }
 
 
   List<T> getElements<T extends StructureElement>() => [
     ...content.whereType<T>(),
-    ...headings.expand((h) => h.$2.getElements<T>()),
+    ...headings.expand((h) => h.body.getElements<T>()),
   ];
 
   String getLuaCode() => (
@@ -79,9 +90,9 @@ class Structure implements ToJson {
 
   Structure? getHeading(String name, {bool noCase = false}) => (
     headings.where((heading) => (
-        (noCase ? heading.$1.toLowerCase() : heading.$1)
+        (noCase ? heading.title.toLowerCase() : heading.title)
         == (noCase ? name.toLowerCase() : name)
-    )).firstOrNull?.$2
+    )).firstOrNull?.body
   );
 
 
@@ -116,9 +127,9 @@ class Structure implements ToJson {
             default: throw 'Invalid structure element type: ${field("type")}';
           }
       }).toList(),
-      headings: (table['headings'] as LuaTable).value.entries.map((e) => (
-          ((e.value as LuaTable)['title'] as LuaString).value,
-          Structure.fromLua(e.value),
+      headings: (table['headings'] as LuaTable).value.entries.map((e) => StructureHeading(
+          title: ((e.value as LuaTable)['title'] as LuaString).value,
+          body: Structure.fromLua(e.value),
       )).toList(),
     );
   }
@@ -189,7 +200,7 @@ Structure _parseStructure(List<String> lines, StructureType st, {int level = 0})
   }
 
   // Parse each heading section
-  final headings = <(String, Structure)>[];
+  final headings = <StructureHeading>[];
   while (nextHead != null) {
     final (prevHeadLine, prevHeadMatch) = nextHead;
 
@@ -197,7 +208,7 @@ Structure _parseStructure(List<String> lines, StructureType st, {int level = 0})
     nextHead = _lineMatch(prevHeadLine+1, lines, st.headingRegexp(level + 1));
     final prevHeadLines = lines.sublist(prevHeadLine+1, nextHead?.$1 ?? lines.length);
     final prevHeadContent = _parseStructure(prevHeadLines, st, level: level+1);
-    headings.add((prevHeadMatch.group(1)!, prevHeadContent));
+    headings.add(StructureHeading(title: prevHeadMatch.group(1)!, body: prevHeadContent));
   }
 
   return Structure(props: props, content: elements, headings: headings);

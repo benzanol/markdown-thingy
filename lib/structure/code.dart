@@ -1,9 +1,11 @@
-import 'package:code_text_field/code_text_field.dart';
 import 'package:flutter/material.dart';
+import 'package:notes/components/global_value_key.dart';
+import 'package:notes/components/icon_btn.dart';
 import 'package:notes/editor/actions.dart';
 import 'package:notes/editor/builtin_actions.dart';
 import 'package:notes/editor/editor_box.dart';
 import 'package:notes/editor/note_editor.dart';
+import 'package:notes/editor/structure_widget.dart';
 import 'package:notes/lua/lua_result.dart';
 import 'package:notes/lua/lua_state.dart';
 import 'package:notes/structure/structure.dart';
@@ -11,9 +13,6 @@ import 'package:notes/structure/structure_type.dart';
 
 
 class StructureCode extends StructureElement {
-  final _codeFieldKey = GlobalKey();
-  final _codeWidgetKey = GlobalKey();
-
   StructureCode(this.content, {required this.language});
   String content;
   final String language;
@@ -37,21 +36,23 @@ class StructureCode extends StructureElement {
   String toText(StructureType st) => '${st.beginCode}$language\n$content\n${st.endCode}';
 
   @override
-  Widget widget(NoteEditor note) => _CodeSectionWidget(note, this);
+  Widget widget(note, parent) => _CodeSectionWidget(note, this, parent);
 }
 
 
 class _CodeSectionWidget extends StatefulWidget {
-  _CodeSectionWidget(this.note, this.element) : super(key: element._codeWidgetKey);
+  _CodeSectionWidget(this.note, this.element, this.parent)
+  : super(key: GlobalValueKey((note, element, 'code')));
   final NoteEditor note;
   final StructureCode element;
+  final StructureElementWidgetState parent;
 
   @override
-  State<_CodeSectionWidget> createState() => _CodeSectionWidgetState();
+  State<_CodeSectionWidget> createState() => CodeSectionWidgetState();
 }
 
-class _CodeSectionWidgetState extends State<_CodeSectionWidget> {
-  _CodeSectionWidgetState();
+class CodeSectionWidgetState extends State<_CodeSectionWidget> {
+  CodeSectionWidgetState();
 
   String get language => widget.element.language;
   String get content => widget.element.content;
@@ -62,25 +63,23 @@ class _CodeSectionWidgetState extends State<_CodeSectionWidget> {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
+      Row(children: [
           Text(
             language,
             textScaler: const TextScaler.linear(1.2),
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
-          language != 'lua' ? Container() : IconButton(
-            icon: const Icon(Icons.play_arrow),
+          Expanded(child: Container()),
+          language != 'lua' ? Container() : IconBtn(
+            icon: Icons.play_arrow,
             onPressed: () => setState(() {
                 result = luaExecuteFile(getGlobalLuaState(), content, widget.note.file);
             }),
           ),
-        ]
-      ),
+          const SizedBox(width: 5),
+      ]),
       EditorBoxCode(
-        key: ObjectKey(widget.element._codeFieldKey),
+        key: GlobalValueKey((widget.note, widget.element, 'box')),
         init: content,
         language: language,
         style: const TextStyle(
@@ -92,23 +91,19 @@ class _CodeSectionWidgetState extends State<_CodeSectionWidget> {
           widget.element.content = newText;
           widget.note.update();
         },
-        onEnter: (c, fn) => widget.note.focus(_FocusableCode(c, fn)),
+        onEnter: (box) => widget.note.focus(FocusableCode(this, box)),
       ),
       result?.widget() ?? Container(),
   ]);
 }
 
 
-class _FocusableCode extends FocusableElement {
-  _FocusableCode(this.controller, this.focusNode);
-  final CodeController controller;
-  final FocusNode focusNode;
+class FocusableCode implements Focusable {
+  FocusableCode(this.state, this.box);
+  final CodeSectionWidgetState state;
+  final EditorBoxCodeState box;
 
-  @override
-  EditorActionsBar actions() => (
-    EditorActionsBar<CodeController>(codeActions, controller)
-  );
-
-  @override
-  void beforeAction() => focusNode.requestFocus();
+  @override bool get shouldRefresh => false;
+  @override get actions => EditorActionsBar<FocusableCode>(codeActions, this);
+  @override void afterAction() => box.focusNode.requestFocus();
 }

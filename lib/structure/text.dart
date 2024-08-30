@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:notes/components/global_value_key.dart';
 import 'package:notes/editor/actions.dart';
 import 'package:notes/editor/builtin_actions.dart';
 import 'package:notes/editor/editor_box.dart';
 import 'package:notes/editor/note_editor.dart';
+import 'package:notes/editor/structure_widget.dart';
 import 'package:notes/structure/structure.dart';
 import 'package:notes/structure/structure_type.dart';
 
 
 class StructureText extends StructureElement {
-  final _textFieldKey = GlobalKey();
-  final _textWidgetKey = GlobalKey();
-
   StructureText(this.text);
   String text;
 
@@ -21,40 +20,39 @@ class StructureText extends StructureElement {
   String toText(StructureType st) => text;
 
   @override
-  Widget widget(NoteEditor note) => _TextSectionWidget(note, this);
+  Widget widget(note, parent) => TextSectionWidget(note, this, parent);
 }
 
 
-class _TextSectionWidget extends StatelessWidget {
-  _TextSectionWidget(this.note, this.element) : super(key: element._textWidgetKey);
+class TextSectionWidget extends StatelessWidget {
+  TextSectionWidget(this.note, this.element, this.parent)
+  : super(key: GlobalValueKey((note, element, 'text')));
   final NoteEditor note;
   final StructureText element;
+  final StructureElementWidgetState parent;
 
   late final EditorBoxField fieldWidget = EditorBoxField(
-    key: element._textFieldKey,
+    key: GlobalValueKey((note, element, 'box')),
     init: element.text,
     onChange: (newText) {
       element.text = newText;
       note.update();
     },
-    onEnter: (c, fn) => note.focus(_FocusableText(c, fn)),
+    onEnter: (box) => note.focus(FocusableText(this, box)),
   );
 
   @override
   Widget build(BuildContext context) => fieldWidget;
 }
 
+// Pleaseeeeeeeeeee don't try merging this with the TextSectionWidget
+// Its too hard to get the editing controller and focus node as fields
+class FocusableText implements Focusable {
+  FocusableText(this.widget, this.box);
+  final TextSectionWidget widget;
+  final EditorBoxFieldState box;
 
-class _FocusableText extends FocusableElement {
-  _FocusableText(this.controller, this.focusNode);
-  final TextEditingController controller;
-  final FocusNode focusNode;
-
-  @override
-  EditorActionsBar actions() => (
-    EditorActionsBar<TextEditingController>(textActions, controller)
-  );
-
-  @override
-  void beforeAction() => focusNode.requestFocus();
+  @override bool get shouldRefresh => false;
+  @override get actions => EditorActionsBar<FocusableText>(textActions, this);
+  @override void afterAction() => box.focusNode.requestFocus();
 }

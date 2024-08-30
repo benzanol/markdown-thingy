@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:notes/components/global_value_key.dart';
 import 'package:notes/components/icon_btn.dart';
 import 'package:notes/editor/actions.dart';
 import 'package:notes/editor/builtin_actions.dart';
@@ -17,21 +18,23 @@ class StructureWidget extends StatelessWidget {
       required this.structure,
       required this.st,
       this.depth = 0,
+      this.parent,
   });
   final NoteEditor note;
   final Structure structure;
   final StructureType st;
   final int depth;
+  final StructureHeadingWidgetState? parent;
 
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       ...List.generate(structure.content.length, (idx) => (
-          StructureElementWidget(note: note, parent: structure, index: idx)
+          StructureElementWidget(note: note, parent: this, index: idx)
       )),
       ...List.generate(structure.headings.length, (idx) => (
-          StructureHeadingWidget(note: note, parent: structure, index: idx, depth: depth)
+          StructureHeadingWidget(note: note, parent: this, index: idx, depth: depth)
       )),
     ],
   );
@@ -39,15 +42,15 @@ class StructureWidget extends StatelessWidget {
 
 
 class StructureHeadingWidget extends StatefulWidget {
-  const StructureHeadingWidget({
-      super.key,
+  StructureHeadingWidget({
       required this.note,
       required this.parent,
       required this.index,
       required this.depth,
-  });
+  })
+  : super(key: GlobalValueKey((note, parent.structure.headings[index], 'heading')));
   final NoteEditor note;
-  final Structure parent;
+  final StructureWidget parent;
   final int index;
   final int depth;
 
@@ -55,28 +58,21 @@ class StructureHeadingWidget extends StatefulWidget {
   State<StructureHeadingWidget> createState() => StructureHeadingWidgetState();
 }
 
-class StructureHeadingWidgetState extends State<StructureHeadingWidget> implements FocusableElement {
+class StructureHeadingWidgetState extends State<StructureHeadingWidget> implements Focusable {
   StructureHeadingWidgetState();
 
   NoteEditor get note => widget.note;
-  Structure get parent => widget.parent;
+  Structure get parent => widget.parent.structure;
   int get index => widget.index;
   int get depth => widget.depth;
-  String get title => parent.headings[index].$1;
-  Structure get struct => parent.headings[index].$2;
+  String get title => parent.headings[index].title;
+  Structure get struct => parent.headings[index].body;
 
   bool isFolded = false;
 
-  bool _isFocused = false;
-  @override void onFocus() => setState(() => _isFocused = true);
-  @override void onUnfocus() => setState(() => _isFocused = false);
-  @override void beforeAction() {}
-  @override void afterAction() => setState(() {});
-
-  @override
-  EditorActionsBar actions() => (
-    EditorActionsBar<StructureHeadingWidgetState>(headingActions, this)
-  );
+  @override bool get shouldRefresh => true;
+  @override get actions => EditorActionsBar<StructureHeadingWidgetState>(headingActions, this);
+  @override void afterAction() {}
 
   @override
   Widget build(BuildContext context) {
@@ -97,23 +93,28 @@ class StructureHeadingWidgetState extends State<StructureHeadingWidget> implemen
                 isFolded = !isFolded;
                 note.focus(this);
             }),
-          )
+          ),
         ],
       ),
     );
 
     return Container(
-      decoration: (_isFocused ? focusedDecoration : null),
+      decoration: (note.focused == this ? focusedDecoration : null),
       child: Column(
         children: [
           headWidget,
-          isFolded ? Container() : StructureWidget(
-            note: widget.note,
-            structure: struct,
-            st: note.st,
-            depth: depth + 1,
+          Visibility(
+            visible: !isFolded,
+            maintainState: true,
+            child: StructureWidget(
+              note: widget.note,
+              structure: struct,
+              st: note.st,
+              depth: depth + 1,
+              parent: this,
+            ),
           ),
-        ]
+        ],
       ),
     );
   }
@@ -125,38 +126,30 @@ class StructureElementWidget extends StatefulWidget {
       required this.note,
       required this.parent,
       required this.index,
-  }) : super(key: parent.content[index].elementWidgetKey);
+  })
+  : super(key: GlobalValueKey((note, parent.structure.content[index], 'element')));
 
   final NoteEditor note;
-  final Structure parent;
+  final StructureWidget parent;
   final int index;
 
   @override
   State<StructureElementWidget> createState() => StructureElementWidgetState();
 }
 
-class StructureElementWidgetState extends State<StructureElementWidget> implements FocusableElement {
+class StructureElementWidgetState extends State<StructureElementWidget> implements Focusable {
   StructureElementWidgetState();
 
   NoteEditor get note => widget.note;
-  Structure get parent => widget.parent;
+  Structure get parent => widget.parent.structure;
   int get index => widget.index;
   StructureElement get element => parent.content[index];
 
   bool isFolded = false;
 
-  bool _isFocused = false;
-  @override void onFocus() => setState(() => _isFocused = true);
-  @override void onUnfocus() {
-    setState(() => _isFocused = false);
-  }
-  @override void beforeAction() {}
-  @override void afterAction() => setState(() {});
-
-  @override
-  EditorActionsBar actions() => (
-    EditorActionsBar<StructureElementWidgetState>([], this)
-  );
+  @override bool get shouldRefresh => true;
+  @override get actions => EditorActionsBar<StructureElementWidgetState>(elementActions, this);
+  @override void afterAction() {}
 
   @override
   Widget build(BuildContext context) => GestureDetector(
@@ -165,8 +158,8 @@ class StructureElementWidgetState extends State<StructureElementWidget> implemen
     child: Padding(
       padding: const EdgeInsets.symmetric(vertical: vSpace/2),
       child: Container(
-        decoration: (_isFocused ? focusedDecoration : null),
-        child: element.widget(note),
+        decoration: (note.focused == this ? focusedDecoration : null),
+        child: element.widget(note, this),
       ),
     ),
   );

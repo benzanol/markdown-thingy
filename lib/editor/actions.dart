@@ -7,7 +7,27 @@ import 'package:notes/components/with_color.dart';
 import 'package:notes/editor/note_editor.dart';
 
 
-typedef EditorActionFunc<Param> = FutureOr<dynamic> Function(BuildContext, Param);
+abstract class Focusable {
+  EditorActionsBar get actions;
+  bool get shouldRefresh;
+  void afterAction();
+}
+
+
+class EditorActionProps<Param> {
+  EditorActionProps({required this.obj, required this.context});
+  final Param obj;
+  final BuildContext context;
+
+  Focusable? newFocus;
+
+  EditorActionProps<T> withObj<T>(T newObj) => EditorActionProps(
+    obj: newObj,
+    context: context,
+  );
+}
+
+typedef EditorActionFunc<Param> = FutureOr<void> Function(EditorActionProps<Param>);
 class EditorAction<Param> {
   const EditorAction({required this.widget, required this.onPress});
   final EditorActionFunc<Param> onPress;
@@ -32,7 +52,7 @@ class EditorActionsBar<Param> {
         children: actions.map((action) => MaterialButton(
             padding: EdgeInsets.zero,
             minWidth: 0,
-            onPressed: () => note.performAction(() => action.onPress(context, param)),
+            onPressed: () => note.performAction<Param>(action, param),
             child: WithColor(
               color: Theme.of(context).colorScheme.surface,
               child: Container(

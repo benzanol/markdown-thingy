@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:notes/editor/actions.dart';
-import 'package:notes/editor/note_structure_widget.dart';
+import 'package:notes/editor/structure_widget.dart';
 import 'package:notes/structure/structure.dart';
 import 'package:notes/structure/structure_type.dart';
 import 'package:notes/structure/text.dart';
@@ -13,15 +13,6 @@ const double hMargin = 8;
 const double vSpace = 8;
 const double textPadding = 8;
 const Color borderColor = Colors.grey;
-
-
-abstract class FocusableElement {
-  EditorActionsBar actions();
-  void onFocus() {}
-  void onUnfocus() {}
-  void beforeAction() {}
-  void afterAction() {}
-}
 
 
 class NoteEditorWidget extends StatefulWidget {
@@ -54,31 +45,33 @@ class NoteEditor extends State<NoteEditorWidget> {
     !isRaw ? Structure.parse(init, st)
     : Structure(props: {}, headings: [], content: [StructureText(init)])
   );
-  late final _bodyWidget = StructureWidget(note: this, structure: struct, st: st);
 
   String toText() => struct.toText(st);
   void update() => onUpdate?.call(this);
 
 
   // Whatever is currently focused
-  FocusableElement? _focused;
-  void focus(FocusableElement? newFocused) {
-    _focused?.onUnfocus();
-    newFocused?.onFocus();
-    _focused = newFocused;
+  Focusable? focused;
+  void focus(Focusable? newFocused) {
+    focused = newFocused;
     setState(() {});
   }
 
-  Future<void> performAction(FutureOr<dynamic> Function() doAction) async {
-    // Retain focus
-    _focused?.beforeAction();
-    await doAction();
-    _focused?.afterAction();
+  Future<void> performAction<T>(EditorAction<T> action, T obj) async {
+    final props = EditorActionProps(obj: obj, context: context);
+    await action.onPress(props);
+
+    final newFocus = props.newFocus;
+    if (newFocus != null) focus(newFocus);
+
+    if (newFocus != null || focused?.shouldRefresh == true) {
+      setState(() {});
+    }
+
+    focused?.afterAction();
+
     update();
   }
-
-  EditorActionsBar? actionsBar() => _focused?.actions();
-
 
   @override
   Widget build(BuildContext context) {
@@ -93,7 +86,7 @@ class NoteEditor extends State<NoteEditorWidget> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: hMargin, vertical: vSpace),
           controller: scrollController,
-          child: _bodyWidget,
+          child: StructureWidget(note: this, structure: struct, st: st),
         ),
       ),
     );
@@ -103,7 +96,7 @@ class NoteEditor extends State<NoteEditorWidget> {
       child: Column(
         children: [
           Expanded(child: noteBody),
-          actionsBar()?.widget(this) ?? Container(),
+          focused?.actions.widget(this) ?? Container(),
         ],
       ),
     );

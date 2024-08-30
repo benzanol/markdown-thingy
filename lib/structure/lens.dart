@@ -3,6 +3,7 @@ import 'package:lua_dardo/lua.dart';
 import 'package:notes/components/hscroll.dart';
 import 'package:notes/editor/editor_box.dart';
 import 'package:notes/editor/note_editor.dart';
+import 'package:notes/editor/structure_widget.dart';
 import 'package:notes/extensions/lenses.dart';
 import 'package:notes/lua/lua_state.dart';
 import 'package:notes/lua/lua_ui.dart';
@@ -29,7 +30,7 @@ class StructureLens extends StructureElement {
   );
 
   @override
-  Widget widget(NoteEditor note) => _LensRootWidget(note, this);
+  Widget widget(note, parent) => _LensRootWidget(note, this, parent);
 
   static (StructureLens, int)? maybeParse(List<String> lines, int line, StructureType st) {
     final startMatch = st.beginLensRegexp.firstMatch(lines[line]);
@@ -52,9 +53,10 @@ class StructureLens extends StructureElement {
 // Its state is whether the widget is raw or not.
 // Each time this is rebuilt, a new _LensStateWidget is created (except in raw mode obviously.)
 class _LensRootWidget extends StatefulWidget {
-  const _LensRootWidget(this.note, this.elem);
+  const _LensRootWidget(this.note, this.elem, this.parent);
   final NoteEditor note;
   final StructureLens elem;
+  final StructureElementWidgetState parent;
 
   @override
   State<_LensRootWidget> createState() => _LensRootWidgetState();

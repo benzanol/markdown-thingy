@@ -35,13 +35,13 @@ class EditorBoxField extends StatefulWidget {
   final TextStyle? style;
 
   final Function(String)? onChange;
-  final Function(TextEditingController, FocusNode)? onEnter;
+  final Function(EditorBoxFieldState state)? onEnter;
 
   @override
-  State<EditorBoxField> createState() => _EditorBoxFieldState();
+  State<EditorBoxField> createState() => EditorBoxFieldState();
 }
 
-class _EditorBoxFieldState extends State<EditorBoxField> {
+class EditorBoxFieldState extends State<EditorBoxField> {
   late final controller = TextEditingController(text: widget.init);
   final focusNode = FocusNode();
   late final field = TextField(
@@ -49,7 +49,7 @@ class _EditorBoxFieldState extends State<EditorBoxField> {
     focusNode: focusNode,
     style: widget.style,
     onChanged: widget.onChange,
-    onTap: () => widget.onEnter?.call(controller, focusNode),
+    onTap: () => widget.onEnter?.call(this),
 
     maxLines: null,
     decoration: const InputDecoration(
@@ -84,14 +84,14 @@ class EditorBoxCode extends StatefulWidget {
   final TextStyle? style;
 
   final Function(String)? onChange;
-  final Function(CodeController, FocusNode)? onEnter;
+  final Function(EditorBoxCodeState state)? onEnter;
 
   @override
-  State<EditorBoxCode> createState() => _EditorBoxCodeState();
+  State<EditorBoxCode> createState() => EditorBoxCodeState();
 }
 
-class _EditorBoxCodeState extends State<EditorBoxCode> {
-  _EditorBoxCodeState();
+class EditorBoxCodeState extends State<EditorBoxCode> {
+  EditorBoxCodeState();
 
   late final controller = CodeController(
     text: widget.init,
@@ -105,7 +105,7 @@ class _EditorBoxCodeState extends State<EditorBoxCode> {
       focusNode: focusNode,
       textStyle: widget.style,
       onChanged: widget.onChange,
-      onTap: () => widget.onEnter?.call(controller, focusNode),
+      onTap: () => widget.onEnter?.call(this),
 
       // Any less wide and triple digit numbers will wrap to the next line
       lineNumberStyle: const LineNumberStyle(width: 35, margin: 5),
