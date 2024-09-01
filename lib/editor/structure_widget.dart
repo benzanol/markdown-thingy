@@ -16,13 +16,13 @@ class StructureWidget extends StatelessWidget {
       super.key,
       required this.note,
       required this.structure,
-      required this.st,
+      required this.sp,
       this.depth = 0,
       this.parent,
   });
   final NoteEditor note;
   final Structure structure;
-  final StructureType st;
+  final StructureParser sp;
   final int depth;
   final StructureHeadingWidgetState? parent;
 
@@ -89,7 +89,7 @@ class StructureHeadingWidgetState extends State<StructureHeadingWidget> implemen
         children: [
           Text(
             widget.depth == 0 ? title
-            : '${note.st.headingPrefixChar * widget.depth} $title',
+            : '${"*" * widget.depth} $title',
             style: const TextStyle(fontSize: 30)
           ),
           IconBtn(
@@ -115,7 +115,7 @@ class StructureHeadingWidgetState extends State<StructureHeadingWidget> implemen
             child: StructureWidget(
               note: widget.note,
               structure: struct,
-              st: note.st,
+              sp: note.sp,
               depth: depth + 1,
               parent: this,
             ),

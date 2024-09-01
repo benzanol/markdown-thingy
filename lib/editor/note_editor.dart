@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:notes/editor/actions.dart';
+import 'package:notes/editor/builtin_actions.dart';
 import 'package:notes/editor/structure_widget.dart';
 import 'package:notes/structure/structure.dart';
 import 'package:notes/structure/structure_type.dart';
@@ -40,13 +41,13 @@ class NoteEditor extends State<NoteEditorWidget> {
   bool get isRaw => widget.isRaw;
   Function(NoteEditor)? get onUpdate => widget.onUpdate;
 
-  late final StructureType st = StructureType.fromFile(file.path)!;
+  late final StructureParser sp = StructureParser.fromFileOrDefault(file.path);
   late final Structure struct = (
-    !isRaw ? Structure.parse(init, st)
+    !isRaw ? sp.parse(init)
     : Structure(props: {}, headings: [], content: [StructureText(init)])
   );
 
-  String toText() => struct.toText(st);
+  String toText() => sp.format(struct);
   void update() => onUpdate?.call(this);
 
 
@@ -60,17 +61,21 @@ class NoteEditor extends State<NoteEditorWidget> {
     final props = EditorActionProps(obj: obj, context: context);
     await action.onPress(props);
 
-    if (props.newFocus != null) focused = props.newFocus;
-    if (props.newFocusedElement != null) {
+    if (props.unfocus) {
+      focused = null;
+    } else if (props.newFocus != null) {
+      focused = props.newFocus;
+    } else if (props.newFocusedElement != null) {
       focused = null;
       focusedElement = props.newFocusedElement;
-    }
-    if (props.newFocusedHeading != null) {
+    } else if (props.newFocusedHeading != null) {
       focused = null;
       focusedHeading = props.newFocusedHeading;
     }
 
-    final focusChanged = (props.newFocus ?? props.newFocusedElement ?? props.newFocusedHeading) != null;
+    final focusChanged = props.unfocus ||
+    (props.newFocus ?? props.newFocusedElement ?? props.newFocusedHeading) != null;
+
     if (focusChanged || focused?.shouldRefresh == true) {
       setState(() {});
     }
@@ -93,7 +98,7 @@ class NoteEditor extends State<NoteEditorWidget> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: hMargin, vertical: vSpace),
           controller: scrollController,
-          child: StructureWidget(note: this, structure: struct, st: st),
+          child: StructureWidget(note: this, structure: struct, sp: sp),
         ),
       ),
     );
@@ -105,7 +110,9 @@ class NoteEditor extends State<NoteEditorWidget> {
           Expanded(child: noteBody),
           // Wrap in a builder so that the action bar gets created AFTER a
           // focusedElement gets initialized
-          Builder(builder: (context) => focused?.actions.widget(this) ?? Container()),
+          Builder(builder: (context) => (
+              focused?.actions ?? EditorActionsBar<Structure>(structureActions, struct)
+            ).widget(this)),
         ],
       ),
     );

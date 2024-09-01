@@ -1,11 +1,14 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:notes/components/icon_btn.dart';
 import 'package:notes/drawer/left_drawer.dart';
 import 'package:notes/editor/note_editor.dart';
 import 'package:notes/editor/state.dart';
 import 'package:notes/extensions/load_extensions.dart';
 import 'package:notes/lua/lua_state.dart';
+import 'package:notes/main.dart';
+import 'package:notes/structure/structure_type.dart';
 
 
 class NoteHandler extends StatefulWidget {
@@ -54,31 +57,47 @@ class _NoteHandlerState extends State<NoteHandler> {
   Widget build(BuildContext context) {
     if (!ready) return const Text('Loading');
 
-    return Scaffold(
-      appBar: AppBar(
-        // leading: BackButton(onPressed: () => setState(() => noteFile = null)),
-        title: Text(note.path.replaceFirst('${widget.directory.path}/', '')),
-        actions: [
-          Row(children: [
-              const Text('Raw'),
-              Switch(value: raw, onChanged: (b) => setState(() { raw = b; })),
-          ]),
-        ],
-      ),
-      drawer: leftDrawer(context),
-      body: FutureBuilder(
-        future: widget.state.getContents(note),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Text('LOADING');
-          }
-          final data = snapshot.data;
-          if (data == null) return const Text('Null data');
+    return FutureBuilder(
+      future: widget.state.getContents(note),
+      builder: (context, snapshot) {
+        final data = snapshot.data;
+        void onUpdate(editor) => widget.state.markModified(note, editor);
 
-          void onUpdate(editor) => widget.state.markModified(note, editor);
-          return NoteEditorWidget(file: note, init: data, onUpdate: onUpdate, isRaw: raw);
-        },
-      ),
+        final indexFileRefreshButton = (
+          (isExtensionIndexFile(repoRootDirectory, note) && data != null)
+          ? IconBtn(
+            radius: 8,
+            icon: Icons.refresh,
+            onPressed: () => runExtensionCode(
+              getGlobalLuaState(),
+              note,
+              StructureParser.fromFileOrDefault(note.path).parse(data),
+            ),
+          )
+          : Container()
+        );
+
+        return Scaffold(
+          appBar: AppBar(
+            title: FittedBox(
+              child: Text(note.path.replaceFirst('${widget.directory.path}/', ''))
+            ),
+            actions: [
+              Row(children: [
+                  indexFileRefreshButton,
+                  const Text('Raw'),
+                  Switch(value: raw, onChanged: (b) => setState(() { raw = b; })),
+              ]),
+            ],
+          ),
+          drawer: leftDrawer(context),
+          body: (
+            (snapshot.connectionState != ConnectionState.done) ? const Text('LOADING')
+            : (data == null) ? const Text('Null data')
+            : NoteEditorWidget(file: note, init: data, onUpdate: onUpdate, isRaw: raw)
+          ),
+        );
+      },
     );
   }
 }

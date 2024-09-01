@@ -20,6 +20,7 @@ class EditorActionProps<Param> {
   final Param obj;
   final BuildContext context;
 
+  bool unfocus = false;
   Focusable? newFocus;
   StructureElement? newFocusedElement;
   StructureHeading? newFocusedHeading;

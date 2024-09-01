@@ -25,19 +25,19 @@ class StructureLens extends StructureElement {
   dynamic toJson() => {'type': 'lens', 'ext': lens.ext, 'name': lens.name, 'text': text};
 
   @override
-  String toText(StructureType st) => (
-    '${st.beginLens}${lens.ext}/${lens.name}\n$text\n${st.endLens}'
+  String markup(StructureMarkup sm) => (
+    '${sm.beginLens}${lens.ext}/${lens.name}\n$text\n${sm.endLens}'
   );
 
   @override
   Widget widget(note, parent) => _LensRootWidget(note, this, parent);
 
-  static (StructureLens, int)? maybeParse(List<String> lines, int line, StructureType st) {
-    final startMatch = st.beginLensRegexp.firstMatch(lines[line]);
+  static (StructureLens, int)? maybeParse(List<String> lines, int line, StructureMarkup sm) {
+    final startMatch = sm.beginLensRegexp.firstMatch(lines[line]);
     if (startMatch == null) return null;
 
     final endLine = lines.indexed.skip(line+1)
-    .where((tup) => st.endLensRegexp.hasMatch(tup.$2)).firstOrNull;
+    .where((tup) => sm.endLensRegexp.hasMatch(tup.$2)).firstOrNull;
     if (endLine == null) return null;
 
     final lens = getLens(startMatch.group(1)!, startMatch.group(2)!);

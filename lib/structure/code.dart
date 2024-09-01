@@ -18,14 +18,14 @@ class StructureCode extends StructureElement {
   final String language;
 
   @override
-  dynamic toJson() => {'type': 'code', 'content': content, 'language': language};
+  dynamic toJson() => {'type': 'code', 'language': language, 'content': content};
 
-  static (StructureCode, int)? maybeParse(List<String> lines, int line, StructureType st) {
-    final match = st.beginCodeRegexp.firstMatch(lines[line]);
+  static (StructureCode, int)? maybeParse(List<String> lines, int line, StructureMarkup sm) {
+    final match = sm.beginCodeRegexp.firstMatch(lines[line]);
     if (match == null) return null;
     final language = match.group(1)!;
 
-    final endLine = lines.indexed.skip(line+1).where((e) => st.endCodeRegexp.hasMatch(e.$2)).firstOrNull;
+    final endLine = lines.indexed.skip(line+1).where((e) => sm.endCodeRegexp.hasMatch(e.$2)).firstOrNull;
     if (endLine == null) return null;
 
     final contents = lines.getRange(line+1, endLine.$1).join('\n');
@@ -33,7 +33,7 @@ class StructureCode extends StructureElement {
   }
 
   @override
-  String toText(StructureType st) => '${st.beginCode}$language\n$content\n${st.endCode}';
+  String markup(StructureMarkup sm) => '${sm.beginCode}$language\n$content\n${sm.endCode}';
 
   @override
   Widget widget(note, parent) => _CodeSectionWidget(note, this, parent);

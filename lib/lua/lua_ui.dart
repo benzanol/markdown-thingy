@@ -63,8 +63,8 @@ abstract class LuaUi {
 }
 
 class LuaLabelUi extends LuaUi {
-  LuaLabelUi(this.text, {this.theme});
-  final String text;
+  LuaLabelUi(this.content, {this.theme});
+  final String content;
   final String? theme;
 
   @override
@@ -93,12 +93,12 @@ class LuaLabelUi extends LuaUi {
           ),
         ),
         onPressed: onPress,
-        child: Text(text, style: style),
+        child: Text(content, style: style),
       )
-      : theme == 'icon-button' ? IconButton(icon: Icon(MdiIcons.fromString(text)), onPressed: onPress)
+      : theme == 'icon-button' ? IconButton(icon: Icon(MdiIcons.fromString(content)), onPressed: onPress)
       : GestureDetector(onTap: onPress, child: (
-          theme == 'icon' ? Icon(MdiIcons.fromString(text))
-          : Text(text, style: style)
+          theme == 'icon' ? Icon(MdiIcons.fromString(content))
+          : Text(content, style: style)
         ),
       )
     );
@@ -106,24 +106,24 @@ class LuaLabelUi extends LuaUi {
 }
 
 class LuaTextFieldUi extends LuaUi {
-  LuaTextFieldUi(this.text);
-  String text;
+  LuaTextFieldUi(this.content);
+  String content;
 
   @override
   void performChange(LuaState lua) {
     lua.getField(-1, 'onChange');
     // Call the function with the string argument
     if (lua.isFunction(-1)) {
-      lua.pushString(text);
+      lua.pushString(content);
       lua.call(1, 0);
     }
   }
 
   @override
   Widget widget(onChange) => _LongLastingTextField(
-    text: text,
+    text: content,
     onChange: (newText) {
-      text = newText;
+      content = newText;
       onChange(this);
     },
   );

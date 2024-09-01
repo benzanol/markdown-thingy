@@ -18,7 +18,7 @@ class StructureTable extends StructureElement {
   @override
   dynamic toJson() => {'type': 'table', 'rows': _table};
 
-  static (StructureTable, int)? maybeParse(List<String> lines, int line, StructureType st) {
+  static (StructureTable, int)? maybeParse(List<String> lines, int line, StructureMarkup sm) {
     int nextLine = line;
     while (nextLine < lines.length && lines[nextLine].startsWith('|')) {
       nextLine++;
@@ -43,7 +43,7 @@ class StructureTable extends StructureElement {
   }
 
   @override
-  String toText(StructureType st) => _table.map((line) => '| ${line.join(" | ")} |').join('\n');
+  String markup(StructureMarkup sm) => _table.map((line) => '| ${line.join(" | ")} |').join('\n');
 
   @override
   Widget widget(note, parent) => _TableWidget(note, this, parent);

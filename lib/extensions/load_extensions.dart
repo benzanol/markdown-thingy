@@ -10,19 +10,32 @@ import 'package:notes/structure/structure_type.dart';
 
 
 const String extDirectory = 'extensions';
-const List<String> extIndexFileNames = ['index.md', 'index.org'];
+const List<String> extIndexFileNames = ['index.md', 'index.org', 'index.lua'];
 const String extsVariable = '*extensions*';
 
 const String extsScopeField = 'scope';
 const String extsLensesField = 'lenses';
 const String extsButtonsField = 'buttons';
 
+bool isExtensionIndexFile(Directory root, File file) {
+  if (!file.path.startsWith(root.path)) return false;
+
+  final rootSegs = root.uri.pathSegments.where((seg) => seg.isNotEmpty);
+  final relativeSegs = file.uri.pathSegments.sublist(rootSegs.length);
+  return (
+    relativeSegs.length == 3
+    && relativeSegs[0] == extDirectory
+    && extIndexFileNames.contains(relativeSegs[2])
+  );
+}
+
 // The extension currently being loaded
 // This is used for lua functions like deflens and defbutton
 Directory? loadingExtension;
 
 
-void runExtensionCode(LuaState lua, File indexFile, String code) {
+void runExtensionCode(LuaState lua, File indexFile, Structure struct) {
+  final code = struct.getLuaCode();
   final extDir = indexFile.parent;
   final extName = fileName(extDir);
 
@@ -52,14 +65,14 @@ Future<void> loadExtensions(LuaState lua, Directory rootDir) async {
           if (indexFile == null) return null;
 
           final content = await indexFile.readAsString();
-          final st = StructureType.fromFile(indexFile.path)!;
-          return (indexFile, Structure.parse(content, st));
+          final sp = StructureParser.fromFile(indexFile.path)!;
+          return (indexFile, sp.parse(content));
       })
   ));
 
   for (final maybeExt in maybeExtensions) {
     if (maybeExt == null) return;
     final (indexFile, struct) = maybeExt;
-    runExtensionCode(lua, indexFile, struct.getLuaCode());
+    runExtensionCode(lua, indexFile, struct);
   }
 }

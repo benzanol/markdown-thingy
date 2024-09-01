@@ -102,6 +102,8 @@ final List<EditorAction<StructureHeadingWidgetState>> headingActions = [
         // Select the next heading
         if (headings.isNotEmpty) {
           ps.newFocusedHeading = headings[min(headings.length-1, ps.obj.index)];
+        } else {
+          ps.unfocus = true;
         }
       }
   }),
@@ -137,6 +139,7 @@ final List<EditorAction<StructureElementWidgetState>> elementActions = [
         if (content.isEmpty) {
           // Go to the heading (if it exists)
           ps.newFocusedHeading = ps.obj.widget.parent.parent?.heading;
+          if (ps.newFocusedHeading == null) ps.unfocus = true;
         } else {
           // Go to the previous element
           ps.newFocusedElement = content[min(content.length-1, ps.obj.index)];
@@ -147,6 +150,21 @@ final List<EditorAction<StructureElementWidgetState>> elementActions = [
       widget: action.widget,
       onPress: (ps) => action.onPress(ps.withObj((newElem) {
             ps.obj.parent.content.insert(ps.obj.index+1, newElem);
+            ps.newFocusedElement = newElem;
+      })),
+  )),
+];
+
+final List<EditorAction<Structure>> structureActions = [
+  iconAction(Icons.title, (ps) {
+      final heading = createHeading();
+      ps.obj.headings.insert(0, heading);
+      ps.newFocusedHeading = heading;
+  }),
+  ...elementBuilders.map((action) => EditorAction(
+      widget: action.widget,
+      onPress: (ps) => action.onPress(ps.withObj((newElem) {
+            ps.obj.content.insert(0, newElem);
             ps.newFocusedElement = newElem;
       })),
   )),

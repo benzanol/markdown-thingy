@@ -10,14 +10,14 @@ import 'package:notes/structure/structure_type.dart';
 
 
 class StructureText extends StructureElement {
-  StructureText(this.text);
-  String text;
+  StructureText(this.content);
+  String content;
 
   @override
-  dynamic toJson() => {'type': 'text', 'text': text};
+  dynamic toJson() => {'type': 'text', 'content': content};
 
   @override
-  String toText(StructureType st) => text;
+  String markup(StructureMarkup sm) => content;
 
   @override
   Widget widget(note, parent) => TextSectionWidget(note, this, parent);
@@ -33,9 +33,9 @@ class TextSectionWidget extends StatelessWidget {
 
   late final EditorBoxField fieldWidget = EditorBoxField(
     key: GlobalValueKey((note, element, 'box')),
-    init: element.text,
+    init: element.content,
     onChange: (newText) {
-      element.text = newText;
+      element.content = newText;
       note.update();
     },
     onEnter: (box) => note.focus(FocusableText(this, box)),

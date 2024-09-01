@@ -55,8 +55,8 @@ final pushFunctions = <String, int Function(LuaState)> {
     // Get a list of structures
     final dir = _resolveDir(relativeDir);
     final structs = dir.listSync().whereType<File>().map((f) {
-        final st = StructureType.fromFile(f.path);
-        return st == null ? null : (f, Structure.parse(f.readAsStringSync(), st));
+        final sp = StructureParser.fromFile(f.path);
+        return sp == null ? null : (f, sp.parse(f.readAsStringSync()));
     }).whereType<(File, Structure)>();
 
     // If there is no function, return the list of structs
@@ -102,22 +102,22 @@ final returnFunctions = <String, dynamic Function(LuaState)>{
   'parse_markdown': (lua) {
     ensureArgCount(lua, 1);
     final content = ensureLuaString(LuaObject.parse(lua, index: 1), 'string');
-    return Structure.parse(content, const MarkdownStructureType());
+    return const MarkdownStructureMarkup().parse(content);
   },
   'to_markdown': (lua) {
     ensureArgCount(lua, 1);
     final structure = ensureLuaTable(LuaObject.parse(lua, index: 1), 'structure');
-    return Structure.fromLua(structure).toText(const MarkdownStructureType());
+    return const MarkdownStructureMarkup().format(Structure.fromLua(structure));
   },
   'parse_org': (lua) {
     ensureArgCount(lua, 1);
     final content = ensureLuaString(LuaObject.parse(lua, index: 1), 'string');
-    return Structure.parse(content, const MarkdownStructureType());
+    return const MarkdownStructureMarkup().parse(content);
   },
   'to_org': (lua) {
     ensureArgCount(lua, 1);
     final structure = ensureLuaTable(LuaObject.parse(lua, index: 1), 'structure');
-    return Structure.fromLua(structure).toText(const OrgStructureType());
+    return const OrgStructureMarkup().format(Structure.fromLua(structure));
   },
 
   'deflens': (lua) {
@@ -149,21 +149,21 @@ final returnFunctions = <String, dynamic Function(LuaState)>{
   'parse_file': (lua) {
     ensureArgCount(lua, 1);
     final file = _resolveFile(ensureLuaString(LuaObject.parse(lua, index: 1), 'file'));
-    final st = StructureType.fromFile(file.path) ?? (throw 'Invalid parse file type');
-    return Structure.parse(file.readAsStringSync(), st);
+    final sp = StructureParser.fromFile(file.path) ?? (throw 'Invalid parse file type');
+    return sp.parse(file.readAsStringSync());
   },
   'load_file': (lua) {
     ensureArgCount(lua, 1);
     final file = _resolveFile(ensureLuaString(LuaObject.parse(lua, index: 1), 'file'));
 
     // Check the file type
-    final st = StructureType.fromFile(file.path) ?? (
+    final sp = StructureParser.fromFile(file.path) ?? (
       file.path.endsWith('.lua') ? null : throw 'Invalid load file'
     );
 
     // Parse the code from the file
     final contents = file.readAsStringSync();
-    final code = st == null ? contents : Structure.parse(contents, st).getLuaCode();
+    final code = sp == null ? contents : sp.parse(contents).getLuaCode();
 
     final result = luaExecuteFile(lua, code, file);
     if (result is LuaFailure) throw result.error;

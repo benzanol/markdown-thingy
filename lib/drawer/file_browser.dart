@@ -8,16 +8,11 @@ import 'package:notes/drawer/file_ops.dart';
 const Color directoryColor = Colors.blueGrey;
 
 
-class FileBrowser extends StatefulWidget {
+class FileBrowser extends StatelessWidget {
   const FileBrowser({super.key, required this.dir, this.openFile});
   final Directory dir;
   final Function(File)? openFile;
 
-  @override
-  State<FileBrowser> createState() => _FileBrowserState();
-}
-
-class _FileBrowserState extends State<FileBrowser> {
   @override
   Widget build(BuildContext context) => GestureDetector(
     behavior: HitTestBehavior.opaque,
@@ -26,7 +21,7 @@ class _FileBrowserState extends State<FileBrowser> {
       final result = await showMenu(
         context: context,
         position: RelativeRect.fromLTRB(pos.dx, pos.dy, pos.dx, pos.dy),
-        items: _creationPopupButtons(context, widget.dir),
+        items: _creationPopupButtons(context, dir),
       );
       result?.call();
     },
@@ -35,16 +30,15 @@ class _FileBrowserState extends State<FileBrowser> {
         Padding(
           padding: const EdgeInsets.only(left: 10),
           child: Text(
-            fileName(widget.dir),
+            fileName(dir),
             style: const TextStyle(color: directoryColor, fontSize: 35),
           ),
         ),
-        FileBrowserDirectory(dir: widget.dir, openFile: widget.openFile),
+        FileBrowserDirectory(dir: dir, openFile: openFile),
       ],
     ),
   );
 }
-
 
 class FileBrowserDirectory extends StatefulWidget {
   const FileBrowserDirectory({super.key, required this.dir, this.openFile, this.depth = 0});
