@@ -1,6 +1,6 @@
 local modules = {
    'Date', 'List', 'Map', 'MultiMap', 'OrderedMap', 'Set',
-   'func', 'seq', 'stringx', 'tablex',
+   'class', 'func', 'seq', 'stringx', 'tablex',
 }
 
 local Pl = {}

@@ -126,6 +126,7 @@ class LuaTextFieldUi extends LuaUi {
       content = newText;
       onChange(this);
     },
+    maxLines: null,
   );
 }
 
@@ -205,9 +206,14 @@ class LuaTableUi extends LuaUi {
 
 
 class _LongLastingTextField extends StatefulWidget {
-  const _LongLastingTextField({required this.text, required this.onChange});
+  const _LongLastingTextField({
+      required this.text,
+      required this.onChange,
+      this.maxLines = 1,
+  });
   final String text;
   final Function(String) onChange;
+  final int? maxLines;
 
   @override
   State<_LongLastingTextField> createState() => _LongLastingTextFieldState();
@@ -218,6 +224,8 @@ class _LongLastingTextFieldState extends State<_LongLastingTextField> {
   late final originalField = TextField(
     controller: textController,
     onChanged: onChanged,
+
+    maxLines: widget.maxLines,
     style: const TextStyle(fontSize: luaUiTextSize),
     decoration: const InputDecoration(
       border: OutlineInputBorder(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lua_dardo/lua.dart';
+import 'package:notes/components/global_value_key.dart';
 import 'package:notes/components/hscroll.dart';
 import 'package:notes/editor/editor_box.dart';
 import 'package:notes/editor/note_editor.dart';
@@ -53,7 +54,8 @@ class StructureLens extends StructureElement {
 // Its state is whether the widget is raw or not.
 // Each time this is rebuilt, a new _LensStateWidget is created (except in raw mode obviously.)
 class _LensRootWidget extends StatefulWidget {
-  const _LensRootWidget(this.note, this.elem, this.parent);
+  _LensRootWidget(this.note, this.elem, this.parent)
+  : super(key: GlobalValueKey((note, elem, 'lens')));
   final NoteEditor note;
   final StructureLens elem;
   final StructureElementWidgetState parent;
@@ -65,17 +67,10 @@ class _LensRootWidget extends StatefulWidget {
 class _LensRootWidgetState extends State<_LensRootWidget> {
   _LensRootWidgetState();
 
-  bool isUi = true;
+  // Null when in raw mode
+  late Widget? ui = generateUi();
 
-  Widget childWidget(BuildContext context) {
-    if (!isUi) {
-      return EditorBoxField(
-        init: widget.elem.text,
-        onChange: (newText) => widget.elem.text = newText,
-      );
-    }
-
-    // Try generating the ui
+  Widget generateUi() {
     try {
       final lua = getGlobalLuaState();
       final stateWidget = _LensStateWidget.generateOrError(widget.note, widget.elem, lua);
@@ -98,10 +93,15 @@ class _LensRootWidgetState extends State<_LensRootWidget> {
           Text('${widget.elem.lens.ext}/${widget.elem.lens.name}'),
           const Expanded(child: SizedBox()),
           IconButton(icon: const Icon(Icons.refresh), onPressed: () => setState(() {})),
-          Switch(value: isUi, onChanged: (val) => setState(() => isUi = val)),
+          Switch(value: ui != null, onChanged: (val) => setState(() {
+                ui = ui == null ? generateUi() : null;
+          })),
         ],
       ),
-      childWidget(context),
+      ui ?? EditorBoxField(
+        init: widget.elem.text,
+        onChange: (newText) => widget.elem.text = newText,
+      ),
     ],
   );
 }

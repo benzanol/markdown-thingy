@@ -75,6 +75,7 @@ LuaState initializeLuaState() {
 
   // Register dart functions
   registerLuaFunctions(lua, 'Lib');
+  _loadLuaLibrary(lua, 'Lib');
 
   // Initialize global tables
   _initializeGlobalTable(lua, extsVariable);

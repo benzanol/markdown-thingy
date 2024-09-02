@@ -30,6 +30,7 @@ class LensExtension {
   List<String> get lensFields => [ext, extsLensesField, name];
 
   int generateState(LuaState lua, String content) {
+    print('Creating new state $ext/$name');
     lua.setTop(0);
 
     // Call the toState function on the content
