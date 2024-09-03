@@ -116,7 +116,7 @@ class _LensStateWidget extends StatelessWidget {
   final StructureLens elem;
   final int _id;
 
-  void performChange(LuaUi component) {
+  Future<void> performChange(BuildContext context, LuaUi component) async {
     lua.setTop(0);
 
     // Load the lua ui component into the stack
@@ -130,7 +130,7 @@ class _LensStateWidget extends StatelessWidget {
     }
 
     // Call the component specific change code
-    component.performChange(lua);
+    await component.performChange(context, lua);
 
     // Update the lens element text
     try {
@@ -146,9 +146,10 @@ class _LensStateWidget extends StatelessWidget {
       try {
         final ui = elem.lens.generateUi(lua, _id);
         return Hscroll(
-          child: ui.widget((component) {
-              setState(() => performChange(component));
-              note.update();
+          child: ui.widget((component) async {
+              await performChange(context, component);
+              setState(() {});
+              note.markModified();
           }),
         );
       } catch (e) {

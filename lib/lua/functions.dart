@@ -14,22 +14,30 @@ import 'package:notes/structure/structure.dart';
 import 'package:notes/structure/structure_type.dart';
 
 
+String _resolvePath(String relative) {
+  final path = (
+    relative.startsWith('~/')
+    ? repoRootDirectory.uri.resolve(relative.substring(2)).path
+    : File(relative).isAbsolute
+    ? relative
+    : (luaCurrentFile?.parent ?? repoRootDirectory).uri.resolve(relative).path
+  );
+
+  if (!path.startsWith(repoRootDirectory.path)) {
+    throw 'File $relative is outside of the repo';
+  }
+  return path;
+}
+
 File _resolveFile(String relative) {
-  final currentDir = luaCurrentFile?.parent ?? repoRootDirectory;
-  final file = File.fromUri(currentDir.uri.resolve(relative));
-
-  if (!file.path.startsWith(repoRootDirectory.path)) throw 'File $relative is outside of the repo';
+  final file = File(_resolvePath(relative));
   if (!file.existsSync()) throw 'File $relative does not exist';
-
   return file;
 }
+
 Directory _resolveDir(String relative) {
-  final currentDir = luaCurrentFile?.parent ?? repoRootDirectory;
-  final dir = Directory.fromUri(currentDir.uri.resolve(relative));
-
-  if (!dir.path.startsWith(repoRootDirectory.path)) throw 'Directory $relative is outside of the repo';
-  if (!dir.existsSync()) throw 'File $relative does not exist';
-
+  final dir = Directory(_resolvePath(relative));
+  if (!dir.existsSync()) throw 'Directory $relative does not exist';
   return dir;
 }
 
@@ -37,12 +45,31 @@ Directory _resolveDir(String relative) {
 
 // Functions which manually push their output onto the stack, and return the number of outputs
 final pushFunctions = <String, int Function(LuaState)> {
+  // Outdated
   'import': (lua) {
     ensureArgCount(lua, 1);
     final extName = ensureLuaString(LuaObject.parse(lua, index: 1), 'extension');
 
     // Push the scope onto the stack
     luaPushTableEntry(lua, extsVariable, [extName, extsScopeField]);
+    return 1;
+  },
+
+  'load_file': (lua) {
+    ensureArgCount(lua, 1, max: 2);
+    final file = _resolveFile(ensureLuaString(LuaObject.parse(lua, index: 1), 'file'));
+    final noFile = LuaObject.parse(lua, index: 2).isTruthy;
+
+    // Check the file type
+    final sp = StructureParser.fromFile(file.path) ?? (
+      file.path.endsWith('.lua') ? null : throw 'Invalid load file'
+    );
+
+    // Parse the code from the file
+    final contents = file.readAsStringSync();
+    final code = sp == null ? contents : sp.parse(contents).getLuaCode();
+
+    luaExecuteFileOrError(lua, code, noFile ? null : file);
     return 1;
   },
 
@@ -94,6 +121,17 @@ final pushFunctions = <String, int Function(LuaState)> {
 
 // Functions which return their output
 final returnFunctions = <String, dynamic Function(LuaState)>{
+  'resolve_file': (lua) {
+    ensureArgCount(lua, 1);
+    final file = _resolveFile(ensureLuaString(LuaObject.parse(lua, index: 1), 'file'));
+    return file.absolute.path;
+  },
+  'resolve_directory': (lua) {
+    ensureArgCount(lua, 1);
+    final file = _resolveDir(ensureLuaString(LuaObject.parse(lua, index: 1), 'file'));
+    return file.absolute.path;
+  },
+
   'print_stack': (lua) {
     // ignore: avoid_print
     print('STACK: ${parseStack(lua)}');
@@ -152,22 +190,10 @@ final returnFunctions = <String, dynamic Function(LuaState)>{
     final sp = StructureParser.fromFile(file.path) ?? (throw 'Invalid parse file type');
     return sp.parse(file.readAsStringSync());
   },
-  'load_file': (lua) {
+  'list_files': (lua) {
     ensureArgCount(lua, 1);
-    final file = _resolveFile(ensureLuaString(LuaObject.parse(lua, index: 1), 'file'));
-
-    // Check the file type
-    final sp = StructureParser.fromFile(file.path) ?? (
-      file.path.endsWith('.lua') ? null : throw 'Invalid load file'
-    );
-
-    // Parse the code from the file
-    final contents = file.readAsStringSync();
-    final code = sp == null ? contents : sp.parse(contents).getLuaCode();
-
-    final result = luaExecuteFile(lua, code, file);
-    if (result is LuaFailure) throw result.error;
-    if (result is LuaSuccess) return result.value;
+    final dir = _resolveDir(ensureLuaString(LuaObject.parse(lua, index: 1), 'directory'));
+    return dir.listSync().map((f) => f.path).toList();
   },
 };
 

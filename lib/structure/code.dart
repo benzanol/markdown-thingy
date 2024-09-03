@@ -73,7 +73,7 @@ class CodeSectionWidgetState extends State<_CodeSectionWidget> {
           language != 'lua' ? Container() : IconBtn(
             icon: Icons.play_arrow,
             onPressed: () => setState(() {
-                result = luaExecuteFile(getGlobalLuaState(), content, widget.note.file);
+                result = luaExecuteFileResult(getGlobalLuaState(), content, widget.note.file);
             }),
           ),
           const SizedBox(width: 5),
@@ -89,7 +89,7 @@ class CodeSectionWidgetState extends State<_CodeSectionWidget> {
 
         onChange: (newText) {
           widget.element.content = newText;
-          widget.note.update();
+          widget.note.markModified();
         },
         onEnter: (box) => widget.note.focus(FocusableCode(this, box)),
       ),

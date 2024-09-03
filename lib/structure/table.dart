@@ -75,7 +75,7 @@ class TableWidgetState extends State<_TableWidget> {
             focusNode: FocusNode(),
             onChanged: (content) {
               widget.element._table[row.$1][cell.$1] = content;
-              widget.note.update();
+              widget.note.markModified();
             },
             maxLines: null,
             decoration: const InputDecoration(

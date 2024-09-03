@@ -22,12 +22,12 @@ class NoteEditorWidget extends StatefulWidget {
       required this.file,
       required this.init,
       this.isRaw = false,
-      this.onUpdate
+      this.markModification
   });
   final File file;
   final String init;
   final bool isRaw;
-  final Function(NoteEditor)? onUpdate;
+  final Function(NoteEditor)? markModification;
 
   @override
   State<NoteEditorWidget> createState() => NoteEditor();
@@ -39,7 +39,6 @@ class NoteEditor extends State<NoteEditorWidget> {
   File get file => widget.file;
   String get init => widget.init;
   bool get isRaw => widget.isRaw;
-  Function(NoteEditor)? get onUpdate => widget.onUpdate;
 
   late final StructureParser sp = StructureParser.fromFileOrDefault(file.path);
   late final Structure struct = (
@@ -48,7 +47,7 @@ class NoteEditor extends State<NoteEditorWidget> {
   );
 
   String toText() => sp.format(struct);
-  void update() => onUpdate?.call(this);
+  void markModified() => widget.markModification?.call(this);
 
 
   // Whatever is currently focused
@@ -82,7 +81,7 @@ class NoteEditor extends State<NoteEditorWidget> {
 
     focused?.afterAction();
 
-    update();
+    markModified();
   }
 
   @override

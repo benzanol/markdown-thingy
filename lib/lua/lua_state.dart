@@ -19,18 +19,7 @@ LuaState getGlobalLuaState() {
 }
 
 
-void _loadLuaLibrary(LuaState lua, String name) {
-  lua.setTop(0);
-  lua.loadString('$name = require "$name"');
-  final result = lua.pCall(0, 1, 0);
-  if (result != ThreadStatus.luaOk) {
-    // ignore: avoid_print
-    print('Error loading library $name: ${lua.toStr(-1)}');
-    return;
-  }
-}
-
-void _initializeGlobalTable(LuaState lua, String variable) {
+void _createGlobalTable(LuaState lua, String variable) {
   lua.newTable();
   lua.setGlobal(variable);
 }
@@ -65,21 +54,16 @@ LuaState initializeLuaState() {
   // Remove access to the filesystem
   lua.doString('loadfile = nil');
   _stripLibFunctions(lua, 'os', keep: ['clock', 'difftime', 'date', 'time']);
-  _stripLibFunctions(lua, 'io', keep: []);
+  // The io library doesn't get created by luadardo
   lua.doString('io = {stdout=print}');
-
-  lua.doString('package.path = "./lua/?.lua"');
-  _loadLuaLibrary(lua, 'debug');
-  _loadLuaLibrary(lua, 'Ui');
-  _loadLuaLibrary(lua, 'Pl');
+  _stripLibFunctions(lua, 'io', keep: ['stdout']);
 
   // Register dart functions
-  registerLuaFunctions(lua, 'Lib');
-  _loadLuaLibrary(lua, 'Lib');
+  registerLuaFunctions(lua, 'App');
 
   // Initialize global tables
-  _initializeGlobalTable(lua, extsVariable);
-  _initializeGlobalTable(lua, lensesVariable);
+  _createGlobalTable(lua, extsVariable);
+  _createGlobalTable(lua, lensesVariable);
 
   return lua;
 }

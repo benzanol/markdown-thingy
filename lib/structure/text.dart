@@ -36,7 +36,7 @@ class TextSectionWidget extends StatelessWidget {
     init: element.content,
     onChange: (newText) {
       element.content = newText;
-      note.update();
+      note.markModified();
     },
     onEnter: (box) => note.focus(FocusableText(this, box)),
   );

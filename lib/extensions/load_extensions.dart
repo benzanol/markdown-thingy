@@ -2,9 +2,7 @@ import 'dart:io';
 
 import 'package:lua_dardo/lua.dart';
 import 'package:notes/drawer/file_ops.dart';
-import 'package:notes/extensions/save_scope.dart';
 import 'package:notes/lua/lua_result.dart';
-import 'package:notes/lua/utils.dart';
 import 'package:notes/structure/structure.dart';
 import 'package:notes/structure/structure_type.dart';
 
@@ -35,16 +33,19 @@ Directory? loadingExtension;
 
 
 void runExtensionCode(LuaState lua, File indexFile, Structure struct) {
-  final code = struct.getLuaCode();
+  final oldDir = Directory.current;
   final extDir = indexFile.parent;
   final extName = fileName(extDir);
+  final code = struct.getLuaCode();
 
   loadingExtension = extDir;
-  final result = saveLuaScope(lua, (lua) => luaExecuteFile(lua, code, indexFile));
+  Directory.current = extDir;
+  final result = luaExecuteFileResult(lua, code, indexFile);
   loadingExtension = null;
+  Directory.current = oldDir;
 
   // Put the new scope into extensions[name][scope]
-  luaSetTableEntry(lua, extsVariable, [extName, extsScopeField]);
+  // luaSetTableEntry(lua, extsVariable, [extName, extsScopeField]);
 
   if (result is LuaFailure) {
     // ignore: avoid_print

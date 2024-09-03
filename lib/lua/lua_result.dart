@@ -6,18 +6,27 @@ import 'package:notes/lua/lua_object.dart';
 
 
 File? luaCurrentFile;
-LuaResult luaExecuteFile(LuaState lua, String code, File file) {
+void luaExecuteFileOrError(LuaState lua, String code, File? file) {
   final prevFile = luaCurrentFile;
-  luaCurrentFile = file;
+  if (file != null) {
+    luaCurrentFile = file;
+  }
+
   try {
     lua.setTop(0);
     lua.loadString(code);
     lua.call(0, 1);
+  } finally {
+    luaCurrentFile = prevFile;
+  }
+}
+
+LuaResult luaExecuteFileResult(LuaState lua, String code, File file) {
+  try {
+    luaExecuteFileOrError(lua, code, file);
     return LuaSuccess(LuaObject.parse(lua));
   } catch (e) {
     return LuaFailure(e.toString());
-  } finally {
-    luaCurrentFile = prevFile;
   }
 }
 

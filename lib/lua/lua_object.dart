@@ -18,6 +18,7 @@ abstract class LuaObject {
 
   LuaType get type;
   void put(LuaState lua);
+  bool get isTruthy => true;
 
   @override
   bool operator ==(Object other) => (
@@ -104,6 +105,7 @@ class LuaNil extends LuaObject {
 
   @override LuaType get type => LuaType.luaNil;
   @override void put(LuaState lua) => lua.pushNil();
+  @override bool get isTruthy => false;
   @override String toString() => 'nil';
 }
 
@@ -140,6 +142,7 @@ class LuaBoolean extends LuaObject {
 
   @override LuaType get type => LuaType.luaBoolean;
   @override void put(LuaState lua) => lua.pushBoolean(value);
+  @override bool get isTruthy => value;
 }
 
 class LuaTable extends LuaObject {
@@ -189,6 +192,8 @@ class LuaOther extends LuaObject {
   LuaOther(this.type);
   @override final LuaType type;
   @override final dynamic value = null;
+
+  @override bool get isTruthy => type != LuaType.luaNone && type != LuaType.luaNil;
 
   @override
   String toString() => '<${luaTypeName(type)}>';

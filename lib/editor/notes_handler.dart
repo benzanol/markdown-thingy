@@ -94,7 +94,7 @@ class _NoteHandlerState extends State<NoteHandler> {
           body: (
             (snapshot.connectionState != ConnectionState.done) ? const Text('LOADING')
             : (data == null) ? const Text('Null data')
-            : NoteEditorWidget(file: note, init: data, onUpdate: onUpdate, isRaw: raw)
+            : NoteEditorWidget(file: note, init: data, markModification: onUpdate, isRaw: raw)
           ),
         );
       },

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -21,10 +22,13 @@ class InvalidLuaUiError extends Error {
 
 
 abstract class LuaUi {
+  LuaUi(this.table);
+  final LuaTable table;
   List<int> path = [];
+
   void setPath(List<int> p) => path = p;
 
-  void performChange(LuaState lua) {}
+  FutureOr<void> performChange(BuildContext context, LuaState lua) {}
 
   Widget widget(void Function(LuaUi) onChange);
 
@@ -42,35 +46,45 @@ abstract class LuaUi {
     final uiType = ensureLuaString(table['type'] ?? LuaNil(), 'ui.type');
 
     switch (uiType) {
-      case 'field': return LuaTextFieldUi(table.listValues.firstOrNull?.value?.toString() ?? '');
-      case 'label': return LuaLabelUi(
-        table.listValues.firstOrNull?.value?.toString() ?? '',
-        theme: table['theme']?.value?.toString(),
-      );
-
-      case 'column': return LuaColumnUi(table.listValues.map(LuaUi._parse).toList());
-      case 'row': return LuaRowUi(table.listValues.map(LuaUi._parse).toList());
-      case 'table': return LuaTableUi(
-        table.listValues.map((row) => (
-            row is! LuaTable ? (throw InvalidLuaUiError('Invalid table row: $row'))
-            : row.listValues.map(LuaUi._parse).toList()
-        )).toList()
-      );
-
+      case 'label': return LuaLabelUi(table);
+      case 'field': return LuaTextFieldUi(table);
+      case 'column': return LuaColumnUi(table);
+      case 'row': return LuaRowUi(table);
+      case 'table': return LuaTableUi(table);
       default: throw InvalidLuaUiError('Invalid ui type: $uiType');
     }
   }
 }
 
 class LuaLabelUi extends LuaUi {
-  LuaLabelUi(this.content, {this.theme});
+  LuaLabelUi(super.table)
+  : content = table.listValues.firstOrNull?.value?.toString() ?? '';
+
   final String content;
-  final String? theme;
+  String? get theme => table['theme']?.value.toString();
+
 
   @override
-  void performChange(LuaState lua) {
-    lua.getField(-1, 'onPress');
-    if (lua.isFunction(-1)) {
+  Future<void> performChange(BuildContext context, LuaState lua) async {
+    if (table['picktime']?.type == LuaType.luaFunction) {
+      final time = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.now(),
+      );
+      if (time == null) return;
+
+      // Push the function onto the stack
+      lua.getField(-1, 'picktime');
+
+      // Push the date object onto the stack
+      lua.loadString('return Pl.Date{hour=${time.hour},min=${time.minute}}');
+      lua.call(0, 1);
+
+      // Call the picktime function
+      lua.call(1, 0);
+
+    } else if (table['onpress']?.type == LuaType.luaFunction) {
+      lua.getField(-1, 'onpress');
       lua.call(0, 0);
     }
   }
@@ -106,12 +120,14 @@ class LuaLabelUi extends LuaUi {
 }
 
 class LuaTextFieldUi extends LuaUi {
-  LuaTextFieldUi(this.content);
+  LuaTextFieldUi(super.table)
+  : content = table.listValues.firstOrNull?.value?.toString() ?? '';
   String content;
 
+
   @override
-  void performChange(LuaState lua) {
-    lua.getField(-1, 'onChange');
+  void performChange(BuildContext context, LuaState lua) {
+    lua.getField(-1, 'onchange');
     // Call the function with the string argument
     if (lua.isFunction(-1)) {
       lua.pushString(content);
@@ -131,8 +147,10 @@ class LuaTextFieldUi extends LuaUi {
 }
 
 class LuaColumnUi extends LuaUi {
-  LuaColumnUi(this.children);
+  LuaColumnUi(super.table)
+  : children = table.listValues.map(LuaUi._parse).toList();
   final List<LuaUi> children;
+
 
   @override
   void setPath(List<int> p) {
@@ -153,8 +171,10 @@ class LuaColumnUi extends LuaUi {
 }
 
 class LuaRowUi extends LuaUi {
-  LuaRowUi(this.children);
+  LuaRowUi(super.table)
+  : children = table.listValues.map(LuaUi._parse).toList();
   final List<LuaUi> children;
+
 
   @override
   void setPath(List<int> p) {
@@ -175,8 +195,13 @@ class LuaRowUi extends LuaUi {
 }
 
 class LuaTableUi extends LuaUi {
-  LuaTableUi(this.rows);
+  LuaTableUi(super.table)
+  : rows = table.listValues.map((row) => (
+      row is! LuaTable ? (throw InvalidLuaUiError('Invalid table row: $row'))
+      : row.listValues.map(LuaUi._parse).toList()
+  )).toList();
   final List<List<LuaUi>> rows;
+
 
   @override
   void setPath(List<int> p) {
