@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lua_dardo/lua.dart';
+import 'package:notes/components/fold_button.dart';
 import 'package:notes/components/global_value_key.dart';
 import 'package:notes/components/hscroll.dart';
 import 'package:notes/editor/editor_box.dart';
@@ -67,10 +68,12 @@ class _LensRootWidget extends StatefulWidget {
 class _LensRootWidgetState extends State<_LensRootWidget> {
   _LensRootWidgetState();
 
-  // Null when in raw mode
-  late Widget? ui = generateUi();
+  bool isFolded = false;
 
-  Widget generateUi() {
+  // Null when in raw mode
+  late Widget? stateWidget = generateStateWidget();
+
+  Widget generateStateWidget() {
     try {
       final lua = getGlobalLuaState();
       final stateWidget = _LensStateWidget.generateOrError(widget.note, widget.elem, lua);
@@ -91,16 +94,21 @@ class _LensRootWidgetState extends State<_LensRootWidget> {
       Row(
         children: [
           Text('${widget.elem.lens.ext}/${widget.elem.lens.name}'),
+          FoldButton(isFolded: isFolded, setFolded: (val) => setState(() => isFolded = val)),
           const Expanded(child: SizedBox()),
           IconButton(icon: const Icon(Icons.refresh), onPressed: () => setState(() {})),
-          Switch(value: ui != null, onChanged: (val) => setState(() {
-                ui = ui == null ? generateUi() : null;
+          Switch(value: stateWidget != null, onChanged: (val) => setState(() {
+                stateWidget = stateWidget == null ? generateStateWidget() : null;
           })),
         ],
       ),
-      ui ?? EditorBoxField(
+      Visibility(
+        visible: !isFolded,
+        maintainState: true,
+        child: stateWidget ?? EditorBoxField(
         init: widget.elem.text,
         onChange: (newText) => widget.elem.text = newText,
+      ),
       ),
     ],
   );
@@ -120,7 +128,7 @@ class _LensStateWidget extends StatelessWidget {
     lua.setTop(0);
 
     // Load the lua ui component into the stack
-    luaPushTableEntry(lua, lensesVariable, ['$_id', lensesUiField]);
+    luaPushTableEntry(lua, instancesVariable, ['$_id', lensesUiField]);
     for (final index in component.path) {
       lua.pushInteger(index + 1); // Lua is one indexed
       lua.getTable(-2);

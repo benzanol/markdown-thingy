@@ -11,7 +11,7 @@ const String toStateField = 'parse';
 const String toTextField = 'format';
 const String toUiField = 'render';
 
-const String lensesVariable = '*lenses*';
+const String instancesVariable = '*instances*';
 const String lensesStateField = 'state';
 const String lensesUiField = 'ui';
 
@@ -40,7 +40,7 @@ class LensExtension {
 
     // Push the result into the instances table at index `randomId`
     final randomId = Random().nextInt(1000000000);
-    luaSetTableEntry(lua, lensesVariable, [randomId.toString(), lensesStateField]);
+    luaSetTableEntry(lua, instancesVariable, [randomId.toString(), lensesStateField]);
     return randomId;
   }
 
@@ -49,7 +49,7 @@ class LensExtension {
 
     // Call the text function on the state
     luaPushTableEntry(lua, extsVariable, [...lensFields, toTextField]);
-    luaPushTableEntry(lua, lensesVariable, [id.toString(), lensesStateField]);
+    luaPushTableEntry(lua, instancesVariable, [id.toString(), lensesStateField]);
     lua.call(1, 1);
 
     return lua.toStr(-1)!;
@@ -60,12 +60,12 @@ class LensExtension {
 
     // Call the ui function on the state
     luaPushTableEntry(lua, extsVariable, [...lensFields, toUiField]);
-    luaPushTableEntry(lua, lensesVariable, [id.toString(), lensesStateField]);
+    luaPushTableEntry(lua, instancesVariable, [id.toString(), lensesStateField]);
     lua.call(1, 1);
 
     // Copy the value reference, and put it into the instances table
     lua.pushValue(-1);
-    luaSetTableEntry(lua, lensesVariable, [id.toString(), lensesUiField]);
+    luaSetTableEntry(lua, instancesVariable, [id.toString(), lensesUiField]);
 
     return LuaUi.parse(LuaObject.parse(lua));
   }

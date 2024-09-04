@@ -9,7 +9,8 @@ import 'package:notes/structure/structure_type.dart';
 
 const String extDirectory = 'extensions';
 const List<String> extIndexFileNames = ['index.md', 'index.org', 'index.lua'];
-const String extsVariable = '*extensions*';
+const String extsVariable = '__extensions__';
+// const String lensesVariable = '__lenses__'
 
 const String extsScopeField = 'scope';
 const String extsLensesField = 'lenses';

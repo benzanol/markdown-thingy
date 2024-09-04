@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:notes/components/fold_button.dart';
 import 'package:notes/components/global_value_key.dart';
 import 'package:notes/components/icon_btn.dart';
 import 'package:notes/editor/actions.dart';
@@ -58,43 +59,53 @@ class CodeSectionWidgetState extends State<_CodeSectionWidget> {
   String get content => widget.element.content;
 
   LuaResult? result;
+  bool isFolded = false;
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      Row(children: [
-          Text(
-            language,
-            textScaler: const TextScaler.linear(1.2),
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          Expanded(child: Container()),
-          language != 'lua' ? Container() : IconBtn(
-            icon: Icons.play_arrow,
-            onPressed: () => setState(() {
-                result = luaExecuteFileResult(getGlobalLuaState(), content, widget.note.file);
-            }),
-          ),
-          const SizedBox(width: 5),
-      ]),
-      EditorBoxCode(
-        key: GlobalValueKey((widget.note, widget.element, 'box')),
-        init: content,
-        language: language,
-        style: const TextStyle(
-          fontFamily: 'Iosevka',
-          fontFeatures: [FontFeature.fractions()],
+  Widget build(BuildContext context) {
+    final headerWidget = Row(children: [
+        Text(
+          language,
+          textScaler: const TextScaler.linear(1.2),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
+        FoldButton(isFolded: isFolded, setFolded: (val) => setState(() => isFolded = val)),
+        Expanded(child: Container()),
+        language != 'lua' ? Container() : IconBtn(
+          icon: Icons.play_arrow,
+          onPressed: () => setState(() {
+              result = luaExecuteFileResult(getGlobalLuaState(), content, widget.note.file);
+          }),
+        ),
+        const SizedBox(width: 5),
+    ]);
 
-        onChange: (newText) {
-          widget.element.content = newText;
-          widget.note.markModified();
-        },
-        onEnter: (box) => widget.note.focus(FocusableCode(this, box)),
+    final codeWidget = EditorBoxCode(
+      key: GlobalValueKey((widget.note, widget.element, 'box')),
+      init: content,
+      language: language,
+      style: const TextStyle(
+        fontFamily: 'Iosevka',
+        fontFeatures: [FontFeature.fractions()],
       ),
-      result?.widget() ?? Container(),
-  ]);
+
+      onChange: (newText) {
+        widget.element.content = newText;
+        widget.note.markModified();
+      },
+      onEnter: (box) => widget.note.focus(FocusableCode(this, box)),
+    );
+
+    final resultWidget = result?.widget() ?? Container();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        headerWidget,
+        Visibility(visible: !isFolded, child: codeWidget),
+        Visibility(visible: !isFolded, child: resultWidget),
+    ]);
+  }
 }
 
 

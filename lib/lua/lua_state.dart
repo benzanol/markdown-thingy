@@ -63,7 +63,7 @@ LuaState initializeLuaState() {
 
   // Initialize global tables
   _createGlobalTable(lua, extsVariable);
-  _createGlobalTable(lua, lensesVariable);
+  _createGlobalTable(lua, instancesVariable);
 
   return lua;
 }

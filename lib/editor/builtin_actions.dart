@@ -31,7 +31,7 @@ void _surroundSelection(
 }
 
 final List<EditorAction<FocusableText>> textActions = [
-  textAction('ESC', (ps) => ps.newFocus = ps.obj.widget.parent),
+  textAction('ESC', (ps) => ps.newFocus = ps.obj.state.widget.parent),
   iconAction(Icons.format_italic,    (ps) => _surroundSelection(ps.obj.box.controller, '*', '*')),
   iconAction(Icons.format_bold,      (ps) => _surroundSelection(ps.obj.box.controller, '**', '**')),
   iconAction(Icons.format_underline, (ps) => _surroundSelection(ps.obj.box.controller, '__', '__')),

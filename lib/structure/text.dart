@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:notes/components/fold_button.dart';
 import 'package:notes/components/global_value_key.dart';
 import 'package:notes/editor/actions.dart';
 import 'package:notes/editor/builtin_actions.dart';
@@ -20,36 +21,60 @@ class StructureText extends StructureElement {
   String markup(StructureMarkup sm) => content;
 
   @override
-  Widget widget(note, parent) => TextSectionWidget(note, this, parent);
+  Widget widget(note, parent) => _TextSectionWidget(note, this, parent);
 }
 
 
-class TextSectionWidget extends StatelessWidget {
-  TextSectionWidget(this.note, this.element, this.parent)
+class _TextSectionWidget extends StatefulWidget {
+  _TextSectionWidget(this.note, this.element, this.parent)
   : super(key: GlobalValueKey((note, element, 'text')));
   final NoteEditor note;
   final StructureText element;
   final StructureElementWidgetState parent;
 
-  late final EditorBoxField fieldWidget = EditorBoxField(
-    key: GlobalValueKey((note, element, 'box')),
-    init: element.content,
-    onChange: (newText) {
-      element.content = newText;
-      note.markModified();
-    },
-    onEnter: (box) => note.focus(FocusableText(this, box)),
-  );
+  @override
+  State<_TextSectionWidget> createState() => TextSectionWidgetState();
+}
+
+class TextSectionWidgetState extends State<_TextSectionWidget> {
+  bool isFolded = false;
 
   @override
-  Widget build(BuildContext context) => fieldWidget;
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Row(
+        children: [
+          const Text(
+            'Text',
+            textScaler: TextScaler.linear(1.2),
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          FoldButton(isFolded: isFolded, setFolded: (val) => setState(() => isFolded = val))
+        ],
+      ),
+      Visibility(
+        visible: !isFolded,
+        child: EditorBoxField(
+          key: GlobalValueKey((widget.note, widget.element, 'box')),
+          init: widget.element.content,
+          onChange: (newText) {
+            widget.element.content = newText;
+            widget.note.markModified();
+          },
+          onEnter: (box) => widget.note.focus(FocusableText(this, box)),
+        ),
+      ),
+    ],
+  );
 }
+
 
 // Pleaseeeeeeeeeee don't try merging this with the TextSectionWidget
 // Its too hard to get the editing controller and focus node as fields
 class FocusableText implements Focusable {
-  FocusableText(this.widget, this.box);
-  final TextSectionWidget widget;
+  FocusableText(this.state, this.box);
+  final TextSectionWidgetState state;
   final EditorBoxFieldState box;
 
   @override bool get shouldRefresh => false;

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:notes/components/fold_button.dart';
 import 'package:notes/components/global_value_key.dart';
-import 'package:notes/components/icon_btn.dart';
 import 'package:notes/editor/actions.dart';
 import 'package:notes/editor/builtin_actions.dart';
 import 'package:notes/editor/note_editor.dart';
@@ -92,11 +92,10 @@ class StructureHeadingWidgetState extends State<StructureHeadingWidget> implemen
             : '${"*" * widget.depth} $title',
             style: const TextStyle(fontSize: 30)
           ),
-          IconBtn(
-            icon: isFolded ? Icons.keyboard_arrow_right : Icons.keyboard_arrow_down,
-            radius: 5,
-            onPressed: () => setState(() {
-                isFolded = !isFolded;
+          FoldButton(
+            isFolded: isFolded,
+            setFolded: (val) => setState(() {
+                isFolded = val;
                 note.focus(this);
             }),
           ),
