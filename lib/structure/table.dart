@@ -92,20 +92,23 @@ class TableWidgetState extends State<_TableWidget> {
   );
 
   @override
-  Widget build(BuildContext context) => Container(
-    color: Theme.of(context).colorScheme.surface,
-    child: Hscroll(child: Table(
-        defaultColumnWidth: const IntrinsicColumnWidth(),
-        border: TableBorder.all(),
-        children: fields.map((fields) => TableRow(
-            children: fields.map((field) => TableCell(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minWidth: 70),
-                  child: field,
-                )
-            )).toList()
-        )).toList()
-    )),
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.topLeft,
+    child: Container(
+      color: Theme.of(context).colorScheme.surface,
+      child: Hscroll(child: Table(
+          defaultColumnWidth: const IntrinsicColumnWidth(),
+          border: TableBorder.all(),
+          children: fields.map((fields) => TableRow(
+              children: fields.map((field) => TableCell(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 70),
+                    child: field,
+                  ),
+              )).toList()
+          )).toList()
+      )),
+    ),
   );
 }
 
