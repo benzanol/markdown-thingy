@@ -7,8 +7,9 @@ import 'package:notes/editor/note_editor.dart';
 
 
 class EditorBox extends StatelessWidget {
-  const EditorBox({super.key, required this.child});
+  const EditorBox({super.key, required this.child, this.fill=false});
   final Widget child;
+  final bool fill;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -17,7 +18,7 @@ class EditorBox extends StatelessWidget {
       border: Border.all(color: borderColor),
     ),
     padding: const EdgeInsets.all(textPadding),
-    alignment: Alignment.topLeft,
+    alignment: fill ? null : Alignment.topLeft,
     child: child,
   );
 }
@@ -114,10 +115,10 @@ class EditorBoxCodeState extends State<EditorBoxCode> {
 
   @override
   Widget build(BuildContext context) => Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        border: Border.all(color: borderColor),
-      ),
-      child: field,
-    );
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surface,
+      border: Border.all(color: borderColor),
+    ),
+    child: field,
+  );
 }

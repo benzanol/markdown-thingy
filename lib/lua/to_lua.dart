@@ -1,4 +1,3 @@
-import 'package:lua_dardo/lua.dart';
 import 'package:notes/lua/lua_object.dart';
 
 
@@ -8,6 +7,7 @@ abstract class ToJson {
 
 LuaObject toLua(dynamic object) => (
   object is LuaObject ? object
+  : object is ToJson ? toLua(object.toJson())
   : object == null ? LuaNil()
   : object is num ? LuaNumber(object)
   : object is bool ? LuaBoolean(object)
@@ -19,10 +19,5 @@ LuaObject toLua(dynamic object) => (
   : object is Map ? LuaTable(Map.fromEntries(
       object.entries.map((e) => MapEntry(toLua(e.key), toLua(e.value))),
   ))
-  : object is ToJson ? toLua(object.toJson())
   : (throw 'Invalid json type: ${object.runtimeType}')
 );
-
-void luaPush(LuaState lua, dynamic object) {
-  toLua(object).put(lua);
-}

@@ -10,7 +10,7 @@ class FoldButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => IconBtn(
     icon: isFolded ? Icons.keyboard_arrow_right : Icons.keyboard_arrow_down,
-    radius: 5,
+    padding: 5,
     onPressed: () => setFolded?.call(!isFolded),
   );
 }

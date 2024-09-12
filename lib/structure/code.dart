@@ -7,8 +7,8 @@ import 'package:notes/editor/builtin_actions.dart';
 import 'package:notes/editor/editor_box.dart';
 import 'package:notes/editor/note_editor.dart';
 import 'package:notes/editor/structure_widget.dart';
-import 'package:notes/lua/lua_result.dart';
-import 'package:notes/lua/lua_state.dart';
+import 'package:notes/lua/context.dart';
+import 'package:notes/lua/result.dart';
 import 'package:notes/structure/structure.dart';
 import 'package:notes/structure/structure_type.dart';
 
@@ -74,7 +74,12 @@ class CodeSectionWidgetState extends State<_CodeSectionWidget> {
         language != 'lua' ? Container() : IconBtn(
           icon: Icons.play_arrow,
           onPressed: () => setState(() {
-              result = luaExecuteFileResult(getGlobalLuaState(), content, widget.note.file);
+              final lua = LuaContext.global(
+                context: context,
+                root: widget.note.repoRoot,
+                location: widget.note.file.parent,
+              );
+              result = lua.executeResult(code: content);
           }),
         ),
         const SizedBox(width: 5),

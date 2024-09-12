@@ -105,8 +105,8 @@ class TableWidgetState extends State<_TableWidget> {
                     constraints: const BoxConstraints(minWidth: 70),
                     child: field,
                   ),
-              )).toList()
-          )).toList()
+              )).toList(),
+          )).toList(),
       )),
     ),
   );

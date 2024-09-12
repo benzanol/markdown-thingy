@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:notes/editor/actions.dart';
 import 'package:notes/editor/builtin_actions.dart';
+import 'package:notes/editor/notes_handler.dart';
 import 'package:notes/editor/structure_widget.dart';
 import 'package:notes/structure/structure.dart';
 import 'package:notes/structure/structure_type.dart';
@@ -19,15 +20,15 @@ const Color borderColor = Colors.grey;
 class NoteEditorWidget extends StatefulWidget {
   const NoteEditorWidget({
       super.key,
+      required this.handler,
       required this.file,
       required this.init,
       this.isRaw = false,
-      this.markModification
   });
+  final NoteHandlerState handler;
   final File file;
   final String init;
   final bool isRaw;
-  final Function(NoteEditor)? markModification;
 
   @override
   State<NoteEditorWidget> createState() => NoteEditor();
@@ -36,6 +37,7 @@ class NoteEditorWidget extends StatefulWidget {
 class NoteEditor extends State<NoteEditorWidget> {
   NoteEditor();
 
+  Directory get repoRoot => widget.handler.repoRoot;
   File get file => widget.file;
   String get init => widget.init;
   bool get isRaw => widget.isRaw;
@@ -47,7 +49,7 @@ class NoteEditor extends State<NoteEditorWidget> {
   );
 
   String toText() => sp.format(struct);
-  void markModified() => widget.markModification?.call(this);
+  void markModified() => widget.handler.markNoteModified(this);
 
 
   // Whatever is currently focused

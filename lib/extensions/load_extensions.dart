@@ -1,18 +1,17 @@
 import 'dart:io';
 
-import 'package:lua_dardo/lua.dart';
 import 'package:notes/drawer/file_ops.dart';
-import 'package:notes/lua/lua_result.dart';
+import 'package:notes/lua/context.dart';
+import 'package:notes/lua/result.dart';
 import 'package:notes/structure/structure.dart';
 import 'package:notes/structure/structure_type.dart';
 
 
 const String extDirectory = 'extensions';
 const List<String> extIndexFileNames = ['index.md', 'index.org', 'index.lua'];
-const String extsVariable = '__extensions__';
-// const String lensesVariable = '__lenses__'
+const String extsVariable = '*extensions*';
 
-const String extsScopeField = 'scope';
+const String extsReturnField = 'value';
 const String extsLensesField = 'lenses';
 const String extsButtonsField = 'buttons';
 
@@ -28,33 +27,22 @@ bool isExtensionIndexFile(Directory root, File file) {
   );
 }
 
-// The extension currently being loaded
-// This is used for lua functions like deflens and defbutton
-Directory? loadingExtension;
 
-
-void runExtensionCode(LuaState lua, File indexFile, Structure struct) {
-  final oldDir = Directory.current;
+void runExtensionCode(LuaContext lua, File indexFile, Structure struct) {
   final extDir = indexFile.parent;
-  final extName = fileName(extDir);
-  final code = struct.getLuaCode();
-
-  loadingExtension = extDir;
-  Directory.current = extDir;
-  final result = luaExecuteFileResult(lua, code, indexFile);
-  loadingExtension = null;
-  Directory.current = oldDir;
+  final extLua = lua.inExt(extDir);
+  final result = extLua.executeResult(code: struct.getLuaCode());
 
   // Put the new scope into extensions[name][scope]
   // luaSetTableEntry(lua, extsVariable, [extName, extsScopeField]);
 
   if (result is LuaFailure) {
     // ignore: avoid_print
-    print('Error loading $extName: ${result.error}');
+    print('Error loading ${fileName(extDir)}: ${result.error}');
   }
 }
 
-Future<void> loadExtensions(LuaState lua, Directory rootDir) async {
+Future<void> loadExtensions(LuaContext lua, Directory rootDir) async {
   final extensionsDir = Directory.fromUri(rootDir.uri.resolve(extDirectory));
   final subDirs = (await extensionsDir.list().toList()).whereType<Directory>();
   final maybeExtensions = (await Future.wait(

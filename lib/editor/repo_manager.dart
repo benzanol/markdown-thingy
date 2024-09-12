@@ -7,8 +7,8 @@ import 'package:notes/editor/note_editor.dart';
 const Duration saveInterval = Duration(seconds: 1);
 
 
-class NotesState {
-  NotesState({required this.directory}) {
+class RepoManager {
+  RepoManager({required this.directory}) {
     saveTimer = Timer.periodic(saveInterval, (_) => saveAll());
   }
   final Directory directory;
