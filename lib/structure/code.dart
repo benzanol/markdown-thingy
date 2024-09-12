@@ -120,6 +120,6 @@ class FocusableCode implements Focusable {
   final EditorBoxCodeState box;
 
   @override bool get shouldRefresh => false;
-  @override get actions => EditorActionsBar<FocusableCode>(codeActions, this);
+  @override get actions => [EditorActionsBar<FocusableCode>(codeActions, this)];
   @override void afterAction() => box.focusNode.requestFocus();
 }

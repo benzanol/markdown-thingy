@@ -9,7 +9,7 @@ import 'package:notes/structure/structure.dart';
 
 
 abstract class Focusable {
-  EditorActionsBar get actions;
+  List<EditorActionsBar> get actions;
   bool get shouldRefresh;
   void afterAction();
 }

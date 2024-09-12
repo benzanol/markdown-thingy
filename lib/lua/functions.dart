@@ -1,13 +1,17 @@
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:lua_dardo/lua.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'package:notes/drawer/file_ops.dart';
+import 'package:notes/editor/actions.dart';
 import 'package:notes/editor/notes_handler.dart';
 import 'package:notes/extensions/lenses.dart';
 import 'package:notes/extensions/load_extensions.dart';
 import 'package:notes/lua/context.dart';
 import 'package:notes/lua/lua_ensure.dart';
 import 'package:notes/lua/lua_object.dart';
+import 'package:notes/structure/lens.dart';
 import 'package:notes/structure/structure.dart';
 import 'package:notes/structure/structure_type.dart';
 
@@ -88,16 +92,27 @@ final returnFunctions = <String, dynamic Function(LuaContext)>{
     if (extDir == null) throw 'Can only define a lens inside an extension';
 
     ensureArgCount(lua, 1);
-    final table = ensureLuaTable(lua.object(1), 'functions');
-    final name = ensureLuaString(table['name'] ?? LuaNil(), 'name');
+    final table = ensureLuaTable(lua.object(1), 'lens');
+    final name = ensureLuaString(table['name'] ?? LuaNil(), 'lens.name');
 
     // Check the function fields
     for (final field in [toStateField, toTextField, toUiField]) {
-      ensureLuaType(table[field] ?? LuaNil(), LuaType.luaFunction, 'functions.$field');
+      ensureLuaType(table[field] ?? LuaNil(), LuaType.luaFunction, 'lens.$field');
     }
 
+    // Get the actions
+    final actionsTable = ensureLuaTable(table[actionsField] ?? LuaTable({}), 'lens.actions');
+    final actions = actionsTable.listValues.indexed.map((indexed) {
+        final (idx, actionObj) = indexed;
+        final actionTbl = ensureLuaTable(actionObj, 'lens.$actionsField[${idx+1}]');
+        final iconName = ensureLuaString(actionTbl['icon'] ?? LuaNil(), 'lens.$actionsField[${idx+1}].icon');
+        final icon = MdiIcons.fromString(iconName) ?? Icons.question_mark;
+        ensureLuaType(actionTbl['press'] ?? LuaNil(), LuaType.luaFunction, 'lens.$actionsField[${idx+1}].press');
+        return iconAction<GlobalKey>(icon, (ps) => LensStateWidgetState.buttonAction(ps, idx));
+    }).toList();
+
     // Get the name
-    final lens = LensExtension(ext: fileName(extDir), name: name);
+    final lens = LensExtension(ext: fileName(extDir), name: name, actions: actions);
     lensTypes.add(lens);
 
     // Add it to the lua table

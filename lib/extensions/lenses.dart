@@ -1,9 +1,12 @@
+import 'package:flutter/material.dart';
+import 'package:notes/editor/actions.dart';
 import 'package:notes/extensions/load_extensions.dart';
 
 
 const String toStateField = 'parse';
 const String toTextField = 'format';
 const String toUiField = 'render';
+const String actionsField = 'actions';
 
 const String instancesVariable = '*instances*';
 const String lensesStateField = 'state';
@@ -17,9 +20,10 @@ LensExtension? getLens(String ext, String name) => (
 
 
 class LensExtension {
-  LensExtension({required this.ext, required this.name});
+  LensExtension({required this.ext, required this.name, required this.actions});
   final String ext;
   final String name;
+  final List<EditorAction<GlobalKey>> actions;
 
   List<String> get lensFields => [ext, extsLensesField, name];
 }

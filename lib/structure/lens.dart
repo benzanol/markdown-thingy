@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:notes/components/fold_button.dart';
 import 'package:notes/components/global_value_key.dart';
 import 'package:notes/components/icon_btn.dart';
+import 'package:notes/editor/actions.dart';
 import 'package:notes/editor/editor_box.dart';
 import 'package:notes/editor/note_editor.dart';
 import 'package:notes/editor/structure_widget.dart';
@@ -15,20 +16,17 @@ import 'package:notes/structure/structure_type.dart';
 
 
 class StructureLens extends StructureElement {
-  StructureLens({
-      required this.lens,
-      required this.text,
-  });
-
-  final LensExtension lens;
+  StructureLens({required this.ext, required this.name, required this.text});
+  final String ext;
+  final String name;
   String text;
 
   @override
-  dynamic toJson() => {'type': 'lens', 'ext': lens.ext, 'name': lens.name, 'content': text};
+  dynamic toJson() => {'type': 'lens', 'ext': ext, 'name': name, 'content': text};
 
   @override
   String markup(StructureMarkup sm) => (
-    '${sm.beginLens}${lens.ext}/${lens.name}\n$text\n${sm.endLens}'
+    '${sm.beginLens}$ext/$name\n$text\n${sm.endLens}'
   );
 
   @override
@@ -42,12 +40,10 @@ class StructureLens extends StructureElement {
     .where((tup) => sm.endLensRegexp.hasMatch(tup.$2)).firstOrNull;
     if (endLine == null) return null;
 
-    final lens = getLens(startMatch.group(1)!, startMatch.group(2)!);
-    if (lens == null) return null;
-
+    final (ext, name) = (startMatch.group(1)!, startMatch.group(2)!);
     final content = lines.getRange(line + 1, endLine.$1).join('\n');
     final nextLine = endLine.$1 + 1;
-    return (StructureLens(lens: lens, text: content), nextLine);
+    return (StructureLens(ext: ext, name: name, text: content), nextLine);
   }
 }
 
@@ -74,13 +70,18 @@ class _LensRootWidgetState extends State<_LensRootWidget> {
   late Widget? stateWidget = generateStateWidget();
 
   Widget generateStateWidget() {
+    final lens = getLens(widget.elem.ext, widget.elem.name);
+    if (lens == null) {
+      return Text('Lens ${widget.elem.ext}/${widget.elem.name} does not exist');
+    }
+
     try {
       final lua = LuaContext.global(
         context: context,
         root: widget.note.repoRoot,
         location: widget.note.file.parent,
       );
-      final stateWidget = _LensStateWidget.generateOrError(widget.note, widget.elem, lua);
+      final stateWidget = LensStateWidget.generateOrError(widget.note, widget.elem, lens, lua);
       return LayoutBuilder(
         builder: (context, layout) => SizedBox(
           width: layout.maxWidth,
@@ -103,7 +104,7 @@ class _LensRootWidgetState extends State<_LensRootWidget> {
       Row(
         children: [
           Text(
-            '${widget.elem.lens.ext}/${widget.elem.lens.name}',
+            '${widget.elem.ext}/${widget.elem.name}',
             textScaler: const TextScaler.linear(1.2),
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
@@ -132,36 +133,60 @@ class _LensRootWidgetState extends State<_LensRootWidget> {
 typedef LuaAction = FutureOr<void> Function(LuaContext lua);
 
 // Every time this widget is created, generateState is called, creating a new state.
-class _LensStateWidget extends StatelessWidget {
-  _LensStateWidget.generateOrError(this.note, this.elem, this.lua)
-  : _id = lua.generateLensState(elem.lens, elem.text);
-  final LuaContext lua;
+class LensStateWidget extends StatefulWidget {
+  LensStateWidget.generateOrError(this.note, this.elem, this.lens, this.lua)
+  : id = lua.generateLensState(lens, elem.text)
+  , super(key: GlobalValueKey((note, elem, 'lens-state')));
+
   final NoteEditor note;
   final StructureLens elem;
-  final int _id;
+  final LensExtension lens;
+  final LuaContext lua;
+  final int id;
+
+  @override
+  State<LensStateWidget> createState() => LensStateWidgetState();
+}
+
+class LensStateWidgetState extends State<LensStateWidget> {
+  static Future<void> buttonAction(EditorActionProps<GlobalKey> ps, int actionIdx) async {
+    final state = ps.obj.currentState as LensStateWidgetState?;
+    if (state == null) {
+      print('Widget not active');
+      return;
+    }
+
+    state.performButtonAction(actionIdx);
+  }
+
 
   Future<void> performAction(LuaUi component, LuaAction action) async {
-    lua.pushUiComponent(_id, component);
-    await action(lua);
+    widget.lua.pushUiComponent(widget.id, component);
+    await action(widget.lua);
 
     // Update the lens element text
     try {
-      elem.text = lua.generateLensText(elem.lens, _id);
+      widget.elem.text = widget.lua.generateLensText(widget.lens, widget.id);
     } catch (e) {
       print('Error generating widget text: $e');
     }
+    widget.note.markModified();
+    setState(() {});
+  }
+
+  void performButtonAction(int actionIdx) {
+    widget.lua.performLensButtonAction(widget.lens, actionIdx, widget.id);
+    widget.elem.text = widget.lua.generateLensText(widget.lens, widget.id);
+    widget.note.markModified();
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) => StatefulBuilder(
     builder: (context, setState) {
       try {
-        final ui = lua.generateLensUi(elem.lens, _id);
-        return ui.innerWidget((component, action) async {
-            await performAction(component, action);
-            setState(() {});
-            note.markModified();
-        });
+        final ui = widget.lua.generateLensUi(widget.lens, widget.id);
+        return ui.innerWidget(performAction);
       } catch (e) {
         return Text(
           'Error in $toUiField method: $e',

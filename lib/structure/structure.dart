@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:notes/editor/note_editor.dart';
 import 'package:notes/editor/structure_widget.dart';
-import 'package:notes/extensions/lenses.dart';
 import 'package:notes/lua/lua_object.dart';
 import 'package:notes/lua/to_lua.dart';
 import 'package:notes/structure/code.dart';
@@ -81,10 +80,7 @@ class Structure implements ToJson {
           switch (field('type')) {
             case 'text': return StructureText(field('text'));
             case 'code': return StructureCode(field('text'), language: field('language'));
-            case 'lens': return StructureLens(
-              lens: LensExtension(ext: field('ext'), name: field('name')),
-              text: field('text'),
-            );
+            case 'lens': return StructureLens(ext: field('ext'), name: field('name'), text: field('text'));
             case 'table': return StructureTable(
               (elem['rows'] as LuaTable).value.values.map((row) => (
                   (row as LuaTable).value.values.map((cell) => (cell as LuaString).value).toList()

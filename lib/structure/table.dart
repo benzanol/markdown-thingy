@@ -121,6 +121,6 @@ class FocusableTable extends Focusable {
   get rows => state.widget.element._table;
 
   @override bool get shouldRefresh => true;
-  @override get actions => EditorActionsBar<FocusableTable>(tableActions, this);
+  @override get actions => [EditorActionsBar<FocusableTable>(tableActions, this)];
   @override void afterAction() => state.focusCell(row, col);
 }

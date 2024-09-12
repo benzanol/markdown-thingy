@@ -78,6 +78,6 @@ class FocusableText implements Focusable {
   final EditorBoxFieldState box;
 
   @override bool get shouldRefresh => false;
-  @override get actions => EditorActionsBar<FocusableText>(textActions, this);
+  @override get actions => [EditorActionsBar<FocusableText>(textActions, this)];
   @override void afterAction() => box.focusNode.requestFocus();
 }

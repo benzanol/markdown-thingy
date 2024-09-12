@@ -111,9 +111,14 @@ class NoteEditor extends State<NoteEditorWidget> {
           Expanded(child: noteBody),
           // Wrap in a builder so that the action bar gets created AFTER a
           // focusedElement gets initialized
-          Builder(builder: (context) => (
-              focused?.actions ?? EditorActionsBar<Structure>(structureActions, struct)
-            ).widget(this)),
+          Builder(builder: (context) => Row(
+              children: (
+                (focused?.actions ?? [EditorActionsBar<Structure>(structureActions, struct)])
+                .map((bar) => bar.widget(this))
+                .toList()
+              ),
+            )
+          ),
         ],
       ),
     );

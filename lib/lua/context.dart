@@ -104,12 +104,23 @@ class LuaContext {
   }
 
 
-  void pushTableEntry(String variable, List<String> fields) {
+  void pushTableEntry(String variable, List<dynamic> fields) {
     _lua.getGlobal(variable);
 
     for (final field in fields) {
-      _lua.getField(-1, field);
-      if (_lua.isNil(-1)) throw 'No table at $field';
+      if (field is String) {
+        _lua.pushString(field);
+      } else if (field is int) {
+        _lua.pushInteger(field);
+      } else {
+        throw 'Invalid field type: $field';
+      }
+      _lua.getTable(-2);
+
+      if (_lua.isNil(-1)) {
+        print(stack());
+        throw 'No table at $field';
+      }
 
       // Remove the old table
       _lua.insert(-2);
@@ -179,6 +190,19 @@ class LuaContext {
       _lua.pushString(content);
       contextCall(1, 0);
     }
+  }
+
+  void performLensButtonAction(LensExtension lens, int actionIdx, int instanceId) {
+    _lua.setTop(0);
+
+    // Load the press function
+    pushTableEntry(extsVariable, [...lens.lensFields, actionsField, actionIdx+1, 'press']);
+    if (!_lua.isFunction(-1)) throw 'press is not a function';
+
+    // Load the instance state
+    pushTableEntry(instancesVariable, ['$instanceId', lensesStateField]);
+
+    contextCall(1, 0);
   }
 
 

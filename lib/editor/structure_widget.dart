@@ -4,6 +4,7 @@ import 'package:notes/components/global_value_key.dart';
 import 'package:notes/editor/actions.dart';
 import 'package:notes/editor/builtin_actions.dart';
 import 'package:notes/editor/note_editor.dart';
+import 'package:notes/structure/lens.dart';
 import 'package:notes/structure/structure.dart';
 import 'package:notes/structure/structure_type.dart';
 
@@ -72,7 +73,7 @@ class StructureHeadingWidgetState extends State<StructureHeadingWidget> implemen
   bool isFolded = false;
 
   @override bool get shouldRefresh => true;
-  @override get actions => EditorActionsBar<StructureHeadingWidgetState>(headingActions, this);
+  @override get actions => [EditorActionsBar<StructureHeadingWidgetState>(headingActions, this)];
   @override void afterAction() {}
 
   @override
@@ -153,7 +154,18 @@ class StructureElementWidgetState extends State<StructureElementWidget> implemen
   bool isFolded = false;
 
   @override bool get shouldRefresh => true;
-  @override get actions => EditorActionsBar<StructureElementWidgetState>(elementActions, this);
+  @override get actions {
+    final elemBar = EditorActionsBar<StructureElementWidgetState>(elementActions, this);
+    if (element is StructureLens) {
+      final key = GlobalValueKey((note, element, 'lens-state'));
+      final state = key.currentState as LensStateWidgetState?;
+      if (state != null) {
+        final lensBar = EditorActionsBar<GlobalKey>(state.widget.lens.actions, key);
+        return [elemBar, lensBar];
+      }
+    }
+    return [elemBar];
+  }
   @override void afterAction() {}
 
   @override
