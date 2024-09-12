@@ -36,6 +36,22 @@ class EditorAction<Param> {
   const EditorAction({required this.widget, required this.onPress});
   final EditorActionFunc<Param> onPress;
   final Widget widget;
+
+  static const double size = 40;
+  Widget buttonWidget(NoteEditor note, BuildContext context, Param param) => MaterialButton(
+    padding: EdgeInsets.zero,
+    minWidth: 0,
+    onPressed: () => note.performAction<Param>(this, param),
+    child: WithColor(
+      color: Theme.of(context).colorScheme.surface,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
+        width: size,
+        height: size,
+        child: widget,
+      ),
+    ),
+  );
 }
 
 class EditorActionsBar<Param> {
@@ -47,29 +63,6 @@ class EditorActionsBar<Param> {
     if (param == null) return null;
     return EditorActionsBar(actions, param);
   }
-
-  static const double size = 40;
-  Widget widget(NoteEditor note) => Builder(
-    builder: (context) => Container(
-      color: Theme.of(context).colorScheme.secondary,
-      child: Row(
-        children: actions.map((action) => MaterialButton(
-            padding: EdgeInsets.zero,
-            minWidth: 0,
-            onPressed: () => note.performAction<Param>(action, param),
-            child: WithColor(
-              color: Theme.of(context).colorScheme.surface,
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
-                width: size,
-                height: size,
-                child: action.widget
-              ),
-            ),
-        )).toList(),
-      ),
-    ),
-  );
 }
 
 
