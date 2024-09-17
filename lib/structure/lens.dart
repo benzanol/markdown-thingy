@@ -121,7 +121,10 @@ class _LensRootWidgetState extends State<_LensRootWidget> {
         maintainState: true,
         child: stateWidget ?? EditorBoxField(
           init: widget.elem.text,
-          onChange: (newText) => widget.elem.text = newText,
+          onChange: (newText) {
+            widget.elem.text = newText;
+            widget.note.markModified();
+          },
         ),
       ),
     ],

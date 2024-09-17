@@ -177,9 +177,9 @@ class LuaContext {
     }
   }
 
-  void performPressAction(Offset pos) {
+  void performPressAction(Map<String, dynamic> arguments) {
     _lua.getField(-1, 'press');
-    push({'x': pos.dx, 'y': pos.dy});
+    push(arguments);
     contextCall(1, 0);
   }
 

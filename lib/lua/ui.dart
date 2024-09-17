@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lua_dardo/lua.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
+import 'package:notes/components/dashed_line.dart';
 import 'package:notes/components/hscroll.dart';
 import 'package:notes/components/icon_btn.dart';
 import 'package:notes/editor/note_editor.dart';
@@ -29,6 +30,15 @@ const Map<String, Color> colorNames = {
   'purple': Colors.purple,
   'orange': Colors.orange,
 };
+
+Color? _parseColor(String? colorStr) => (
+  colorStr == null ? null
+  : colorStr.startsWith('#') && colorStr.length == 9
+  ? Color(int.parse(colorStr.substring(1), radix: 16))
+  : colorStr.startsWith('#') && colorStr.length == 7
+  ? Color(int.parse('ff${colorStr.substring(1)}', radix: 16))
+  : colorNames[colorStr]
+);
 
 
 class InvalidLuaUiError extends Error {
@@ -73,8 +83,9 @@ abstract class LuaUi {
 
   void setPath(List<int> p) => path = p;
 
-  double? numField(String f) => table[f] == null ? null : ensureLuaNumber(table[f]!, f).toDouble();
   String? strField(String f) => table[f] == null ? null : ensureLuaString(table[f]!, f);
+  num? numField(String f) => table[f] == null ? null : ensureLuaNumber(table[f]!, f);
+  double? doubField(String f) => numField(f)?.toDouble();
 
   T? enumField<T extends Enum>(String field, List<T> values, {List<LuaTable>? tables}) {
     return [...(tables ?? []), table].map((tbl) {
@@ -87,36 +98,36 @@ abstract class LuaUi {
   Widget innerWidget(PerformAction onChange);
   @nonVirtual
   Widget widget(PerformAction onChange) {
-    final p = numField('p') ?? 0;
+    final p = doubField('p') ?? 0;
     final padding = EdgeInsets.only(
-      left:   p + (numField('pl') ?? 0),
-      right:  p + (numField('pr') ?? 0),
-      top:    p + (numField('pt') ?? 0),
-      bottom: p + (numField('pb') ?? 0),
-    );
-
-    final colorStr = strField('bg');
-    final color = (
-      colorStr == null ? null
-      : colorStr.startsWith('#') ? Color(int.parse(colorStr.substring(1)))
-      : colorNames[colorStr]
+      left:   p + (doubField('pl') ?? 0) + (doubField('px') ?? 0),
+      right:  p + (doubField('pr') ?? 0) + (doubField('px') ?? 0),
+      top:    p + (doubField('pt') ?? 0) + (doubField('py') ?? 0),
+      bottom: p + (doubField('pb') ?? 0) + (doubField('py') ?? 0),
     );
 
     final container = Container(
       padding: padding,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(numField('radius') ?? 0),
-      ),
+      color: _parseColor(strField('bg')),
       child: innerWidget(onChange),
     );
 
     if (table['press']?.type != LuaType.luaFunction) return container;
-    return GestureDetector(
-      onTapDown: (details) {
-        onChange(this, (lua) => lua.performPressAction(details.localPosition));
-      },
-      child: container,
+    return Builder(
+      builder: (context) => GestureDetector(
+        onTapDown: (TapDownDetails details) {
+          final pos = details.localPosition;
+          final renderBox = context.findRenderObject() as RenderBox;
+          final size = renderBox.size;
+
+          final args = {
+            'x': pos.dx, 'y': pos.dy,
+            'width': size.width, 'height': size.height,
+          };
+          onChange(this, (lua) => lua.performPressAction(args));
+        },
+        child: container,
+      ),
     );
   }
 }
@@ -134,6 +145,7 @@ class LuaLabelUi extends LuaUi {
 
   final String content;
   String? get theme => table['theme']?.value.toString();
+  Color? get fgColor => _parseColor(table['fg']?.value.toString());
 
   static const buttonFgColor = Color(0xdd2266bb);
   static const buttonBgColor = Color(0xffeff2ff);
@@ -142,11 +154,12 @@ class LuaLabelUi extends LuaUi {
 
   @override
   Widget innerWidget(PerformAction onChange) {
-    const style = TextStyle(fontSize: luaUiTextSize);
+    final style = TextStyle(fontSize: luaUiTextSize, color: fgColor);
     final label = (
       theme == 'button' ? ElevatedButton(
         style: ElevatedButton.styleFrom(
           backgroundColor: buttonBgColor,
+          minimumSize: const Size(0,0),
           padding: const EdgeInsets.all(textPadding),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(luaUiRadius),
@@ -171,6 +184,7 @@ class LuaLabelUi extends LuaUi {
       : theme == 'icon' ? Icon(MdiIcons.fromString(content))
       : Text(content, style: style)
     );
+    if (table['fill']?.isTruthy == true) return label;
     return Container(alignment: Alignment.topLeft, child: label);
   }
 }
@@ -213,10 +227,11 @@ class LuaColumnUi extends LuaUi {
   @override
   Widget innerWidget(PerformAction onChange) {
     final align = enumField('align', CrossAxisAlignment.values);
+    final gap = doubField('gap') ?? luaUiGap;
     return Column(
       crossAxisAlignment: align ?? CrossAxisAlignment.start,
       children: children.map((child) => Padding(
-          padding: EdgeInsets.only(bottom: child == children.last ? 0 : luaUiGap),
+          padding: EdgeInsets.only(bottom: child == children.last ? 0 : gap),
           child: child.widget(onChange),
       )).toList(),
     );
@@ -241,11 +256,12 @@ class LuaRowUi extends LuaUi {
   Widget innerWidget(PerformAction onChange) {
     final expanded = table['expanded']?.isTruthy == true;
     final align = enumField('align', CrossAxisAlignment.values);
+    final gap = doubField('gap') ?? luaUiGap;
     final row = Row(
       crossAxisAlignment: align ?? CrossAxisAlignment.start,
       children: children.map((child) {
           final inside = Padding(
-            padding: EdgeInsets.only(right: child == children.last ? 0 : luaUiGap),
+            padding: EdgeInsets.only(right: child == children.last ? 0 : gap),
             child: child.widget(onChange),
           );
           return expanded ? Expanded(child: inside) : inside;
@@ -297,9 +313,17 @@ class LuaTableUi extends LuaUi {
 }
 
 class LuaStackUi extends LuaUi {
-  LuaStackUi(super.table)
-  : children = table.listValues.map(LuaUi.parse).toList();
-  final List<LuaUi> children;
+  LuaStackUi(super.table) {
+    for (final t in table.listValues.whereType<LuaTable>()) {
+      if (t['type']?.value == 'line') {
+        lines.add(LuaEmptyUi(t));
+      } else {
+        children.add(LuaUi.parse(t));
+      }
+    }
+  }
+  final List<LuaUi> children = [];
+  final List<LuaEmptyUi> lines = [];
 
   @override
   void setPath(List<int> p) {
@@ -309,23 +333,48 @@ class LuaStackUi extends LuaUi {
     }
   }
 
-  static Positioned generateChildWidget(LuaUi child, PerformAction onChange) {
+  static double? dimension(num? raw, double max) => (
+    raw == null ? null
+    : raw is int ? raw.toDouble()
+    : raw.toDouble() * max
+  );
+
+  static Positioned generateChildWidget(LuaUi child, PerformAction onChange, BoxConstraints box) {
     return Positioned(
-      left: child.numField('x'),
-      top: child.numField('y'),
-      width: child.numField('width'),
-      height: child.numField('height'),
+      left: dimension(child.numField('x'), box.maxWidth),
+      top: dimension(child.numField('y'), box.maxHeight),
+      width: dimension(child.numField('width'), box.maxWidth),
+      height: dimension(child.numField('height'), box.maxHeight),
       child: child.widget(onChange),
+    );
+  }
+
+  static Positioned generateLineWidget(LuaUi line, PerformAction onChange, BoxConstraints box) {
+    final w = dimension(line.numField('width'), box.maxWidth);
+    final h = dimension(line.numField('height'), box.maxHeight);
+    return Positioned(
+      left: dimension(line.numField('x'), box.maxWidth),
+      top: dimension(line.numField('y'), box.maxHeight),
+      child: DashedLine(
+        length: w ?? h ?? (throw 'Line has no width or height'),
+        isVertical: w == null,
+        color: _parseColor(line.strField('color')) ?? Colors.black,
+        thickness: line.doubField('thickness') ?? 1,
+        style: line.enumField('style', DashedLineStyle.values) ?? DashedLineStyle.solid,
+      ),
     );
   }
 
   @override
   Widget innerWidget(PerformAction onChange) => SizedBox(
-    height: numField('height') ?? 100,
-    child: Stack(
-      children: children.map(
-        (child) => generateChildWidget(child, onChange)
-      ).toList(),
+    height: doubField('height') ?? 100,
+    child: LayoutBuilder(
+      builder: (context, constraints) => Stack(
+        children: [
+          ...children.map((child) => generateChildWidget(child, onChange, constraints)),
+          ...lines.map((child) => generateLineWidget(child, onChange, constraints)),
+        ],
+      ),
     ),
   );
 
