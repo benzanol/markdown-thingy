@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:lua_dardo/lua.dart';
+import 'package:notes/editor/note_handler.dart';
 import 'package:notes/extensions/lenses.dart';
 import 'package:notes/extensions/load_extensions.dart';
 import 'package:notes/lua/init.dart';
@@ -19,16 +20,16 @@ class LuaContext {
 
   final LuaState _lua;
   final BuildContext context;
-  final Directory root;
+  final NoteHandlerState handler;
   final Directory location;
   final Directory? ext;
 
-  LuaContext(this._lua, {required this.context, required this.root, required this.location, this.ext});
-  LuaContext.global({required this.context, required this.root, Directory? location, this.ext})
-  : _lua = _globalLuaState, location = location ?? root;
+  LuaContext(this._lua, this.handler, this.context, {required this.location, this.ext});
+  LuaContext.global(this.handler, this.context, {Directory? location, this.ext})
+  : _lua = _globalLuaState, location = location ?? handler.repoRoot;
 
-  LuaContext inDir(Directory d) => LuaContext(_lua, context: context, root: root, location: d, ext: ext);
-  LuaContext inExt(Directory d) => LuaContext(_lua, context: context, root: root, location: d, ext: d);
+  LuaContext inDir(Directory d) => LuaContext(_lua, handler, context, location: d, ext: ext);
+  LuaContext inExt(Directory d) => LuaContext(_lua, handler, context, location: d, ext: d);
 
 
   int stackSize() => _lua.getTop();
@@ -74,12 +75,12 @@ class LuaContext {
 
   String resolvePath(String relative) {
     final path = (
-      relative.startsWith('~/') ? root.uri.resolve(relative.substring(2)).path
+      relative.startsWith('~/') ? handler.repoRoot.uri.resolve(relative.substring(2)).path
       : File(relative).isAbsolute ? relative
       : location.uri.resolve(relative).path
     );
 
-    if (!path.startsWith(root.path)) {
+    if (!path.startsWith(handler.repoRoot.path)) {
       throw 'File $relative is outside of the repo';
     }
     return path;
@@ -118,7 +119,6 @@ class LuaContext {
       _lua.getTable(-2);
 
       if (_lua.isNil(-1)) {
-        print(stack());
         throw 'No table at $field';
       }
 

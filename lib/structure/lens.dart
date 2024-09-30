@@ -76,12 +76,9 @@ class _LensRootWidgetState extends State<_LensRootWidget> {
     }
 
     try {
-      final lua = LuaContext.global(
-        context: context,
-        root: widget.note.repoRoot,
-        location: widget.note.file.parent,
+      final stateWidget = LensStateWidget.generateOrError(
+        widget.note, widget.elem, lens, context
       );
-      final stateWidget = LensStateWidget.generateOrError(widget.note, widget.elem, lens, lua);
       return LayoutBuilder(
         builder: (context, layout) => SizedBox(
           width: layout.maxWidth,
@@ -137,14 +134,13 @@ typedef LuaAction = FutureOr<void> Function(LuaContext lua);
 
 // Every time this widget is created, generateState is called, creating a new state.
 class LensStateWidget extends StatefulWidget {
-  LensStateWidget.generateOrError(this.note, this.elem, this.lens, this.lua)
-  : id = lua.generateLensState(lens, elem.text)
+  LensStateWidget.generateOrError(this.note, this.elem, this.lens, BuildContext context)
+  : id = LuaContext.global(note.handler, context).generateLensState(lens, elem.text)
   , super(key: GlobalValueKey((note, elem, 'lens-state')));
 
   final NoteEditor note;
   final StructureLens elem;
   final LensExtension lens;
-  final LuaContext lua;
   final int id;
 
   @override
@@ -159,17 +155,17 @@ class LensStateWidgetState extends State<LensStateWidget> {
       return;
     }
 
-    state.performButtonAction(actionIdx);
+    // state.performButtonAction(actionIdx);
   }
 
 
-  Future<void> performAction(LuaUi component, LuaAction action) async {
-    widget.lua.pushUiComponent(widget.id, component);
-    await action(widget.lua);
+  Future<void> performAction(LuaContext lua, LuaUi component, LuaAction action) async {
+    lua.pushUiComponent(widget.id, component);
+    await action(lua);
 
     // Update the lens element text
     try {
-      widget.elem.text = widget.lua.generateLensText(widget.lens, widget.id);
+      widget.elem.text = lua.generateLensText(widget.lens, widget.id);
     } catch (e) {
       print('Error generating widget text: $e');
     }
@@ -177,9 +173,9 @@ class LensStateWidgetState extends State<LensStateWidget> {
     setState(() {});
   }
 
-  void performButtonAction(int actionIdx) {
-    widget.lua.performLensButtonAction(widget.lens, actionIdx, widget.id);
-    widget.elem.text = widget.lua.generateLensText(widget.lens, widget.id);
+  void performButtonAction(LuaContext lua, int actionIdx) {
+    lua.performLensButtonAction(widget.lens, actionIdx, widget.id);
+    widget.elem.text = lua.generateLensText(widget.lens, widget.id);
     widget.note.markModified();
     setState(() {});
   }
@@ -188,8 +184,9 @@ class LensStateWidgetState extends State<LensStateWidget> {
   Widget build(BuildContext context) => StatefulBuilder(
     builder: (context, setState) {
       try {
-        final ui = widget.lua.generateLensUi(widget.lens, widget.id);
-        return ui.innerWidget(performAction);
+        final lua = LuaContext.global(widget.note.handler, context);
+        final ui = lua.generateLensUi(widget.lens, widget.id);
+        return ui.innerWidget((component, action) => performAction(lua, component, action));
       } catch (e) {
         return Text(
           'Error in $toUiField method: $e',

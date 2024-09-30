@@ -6,7 +6,6 @@ import 'package:lua_dardo/lua.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'package:notes/components/dashed_line.dart';
 import 'package:notes/components/hscroll.dart';
-import 'package:notes/components/icon_btn.dart';
 import 'package:notes/editor/note_editor.dart';
 import 'package:notes/lua/lua_ensure.dart';
 import 'package:notes/lua/lua_object.dart';
@@ -120,9 +119,11 @@ abstract class LuaUi {
           final renderBox = context.findRenderObject() as RenderBox;
           final size = renderBox.size;
 
-          final args = {
-            'x': pos.dx, 'y': pos.dy,
-            'width': size.width, 'height': size.height,
+          final args = <String, dynamic>{
+            'x': pos.dx/size.width,
+            'y': pos.dy/size.height,
+            'width': size.width,
+            'height': size.height,
           };
           onChange(this, (lua) => lua.performPressAction(args));
         },
@@ -156,30 +157,24 @@ class LuaLabelUi extends LuaUi {
   Widget innerWidget(PerformAction onChange) {
     final style = TextStyle(fontSize: luaUiTextSize, color: fgColor);
     final label = (
-      theme == 'button' ? ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: buttonBgColor,
-          minimumSize: const Size(0,0),
-          padding: const EdgeInsets.all(textPadding),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(luaUiRadius),
-            side: const BorderSide(
-              color: buttonBorderColor, // Border color
-              width: 1.5, // Border width
-            ),
+      theme == 'button' || theme == 'icon-button' ? Transform.scale(
+        scale: theme == 'button' ? 1 : 0.85,
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: buttonBgColor,
+            borderRadius: BorderRadius.circular(theme == 'button' ? luaUiRadius : 100),
+            border: const Border.fromBorderSide(BorderSide(
+                color: buttonBorderColor, // Border color
+                width: 1.5, // Border width
+            )),
+          ),
+          alignment: doubField('width') == null ? null : Alignment.center,
+          child: (
+            theme == 'button' ? Text(content, style: style.copyWith(color: buttonFgColor))
+            : Icon(MdiIcons.fromString(content) ?? Icons.question_mark, color: buttonFgColor)
           ),
         ),
-        onPressed: () {}, // Press handled by gesture detector
-        child: Text(content, style: style.copyWith(color: buttonFgColor)),
-      )
-      : theme == 'icon-button' ? IconBtn(
-        icon: MdiIcons.fromString(content) ?? Icons.question_mark,
-        onPressed: () {}, // Press handled by gesture detector
-        padding: 1,
-        scale: 0.95,
-        color: buttonFgColor,
-        bgColor: buttonBgColor,
-        borderColor: buttonBorderColor,
       )
       : theme == 'icon' ? Icon(MdiIcons.fromString(content))
       : Text(content, style: style)

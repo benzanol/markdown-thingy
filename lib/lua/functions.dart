@@ -5,7 +5,6 @@ import 'package:lua_dardo/lua.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'package:notes/drawer/file_ops.dart';
 import 'package:notes/editor/actions.dart';
-import 'package:notes/editor/notes_handler.dart';
 import 'package:notes/extensions/lenses.dart';
 import 'package:notes/extensions/load_extensions.dart';
 import 'package:notes/lua/context.dart';
@@ -155,6 +154,6 @@ final returnFunctions = <String, dynamic Function(LuaContext)>{
     final relative = ensureLuaString(lua.object(1), 'file');
     final create = lua.object(2).isTruthy;
     final file = lua.resolveExistingFile(relative, create: create);
-    noteHandler.openFile(file);
+    lua.handler.openFile(file);
   },
 };

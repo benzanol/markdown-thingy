@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:notes/editor/actions.dart';
 import 'package:notes/editor/builtin_actions.dart';
-import 'package:notes/editor/notes_handler.dart';
+import 'package:notes/editor/note_handler.dart';
 import 'package:notes/editor/structure_widget.dart';
 import 'package:notes/structure/structure.dart';
 import 'package:notes/structure/structure_type.dart';
@@ -37,7 +37,7 @@ class NoteEditorWidget extends StatefulWidget {
 class NoteEditor extends State<NoteEditorWidget> {
   NoteEditor();
 
-  Directory get repoRoot => widget.handler.repoRoot;
+  NoteHandlerState get handler => widget.handler;
   File get file => widget.file;
   String get init => widget.init;
   bool get isRaw => widget.isRaw;

@@ -10,16 +10,14 @@ import 'package:notes/lua/context.dart';
 import 'package:notes/structure/structure_type.dart';
 
 
-final noteHandler = NoteHandlerState(
-  repoRoot: Directory('/home/benzanol/Documents/repo'),
-);
-
 class NoteHandler extends StatefulWidget {
   const NoteHandler({super.key});
 
   @override
   // ignore: no_logic_in_create_state
-  State<NoteHandler> createState() => noteHandler;
+  State<NoteHandler> createState() => NoteHandlerState(
+    repoRoot: Directory('/home/benzanol/Documents/repo'),
+  );
 }
 
 class NoteHandlerState extends State<NoteHandler> {
@@ -56,7 +54,7 @@ class NoteHandlerState extends State<NoteHandler> {
   Widget build(BuildContext context) {
     if (!_loadedExtensions) {
       // Start initialize lenses
-      final lua = LuaContext.global(context: context, root: repoRoot);
+      final lua = LuaContext.global(this, context);
       loadExtensions(lua, repoRoot).then((_) => setState(() => _loadedExtensions = true));
       return const Text('Loading');
     }
@@ -72,7 +70,7 @@ class NoteHandlerState extends State<NoteHandler> {
             padding: 8,
             icon: Icons.refresh,
             onPressed: () {
-              final lua = LuaContext.global(context: context, root: repoRoot);
+              final lua = LuaContext.global(this, context);
               final struct = StructureParser.fromFileOrDefault(note.path).parse(data);
               runExtensionCode(lua, note, struct);
             },

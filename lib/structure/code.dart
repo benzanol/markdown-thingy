@@ -75,8 +75,8 @@ class CodeSectionWidgetState extends State<_CodeSectionWidget> {
           icon: Icons.play_arrow,
           onPressed: () => setState(() {
               final lua = LuaContext.global(
-                context: context,
-                root: widget.note.repoRoot,
+                widget.note.handler,
+                context,
                 location: widget.note.file.parent,
               );
               result = lua.executeResult(code: content);

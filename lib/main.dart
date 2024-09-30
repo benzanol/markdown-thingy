@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:notes/editor/notes_handler.dart';
+import 'package:notes/editor/note_handler.dart';
 
 
 void main() {
