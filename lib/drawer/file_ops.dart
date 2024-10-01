@@ -33,5 +33,5 @@ Future<void> promptedDelete(BuildContext context, FileSystemEntity file) async {
   final confirmed = await promptConfirmation(context, 'Are you sure you want to delete ${fileName(file)}$contentsStr?');
 
   if (confirmed != true) return;
-  await file.delete();
+  await file.delete(recursive: true);
 }

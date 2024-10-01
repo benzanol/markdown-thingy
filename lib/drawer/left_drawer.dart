@@ -1,13 +1,9 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:notes/drawer/file_browser.dart';
 
 
 class LeftDrawer extends StatelessWidget {
-  const LeftDrawer({super.key, required this.dir, required this.openFile});
-  final Directory dir;
-  final Function(File) openFile;
+  const LeftDrawer({super.key, required this.child});
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +12,8 @@ class LeftDrawer extends StatelessWidget {
       width: MediaQuery.of(context).size.width * 0.6,
       child: Container(
         alignment: Alignment.topLeft,
-        child: FileBrowser(dir: dir, openFile: openFile),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        child: child,
       ),
     );
   }

@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:notes/components/icon_btn.dart';
+import 'package:notes/drawer/file_browser.dart';
+import 'package:notes/drawer/git_manager.dart';
 import 'package:notes/drawer/left_drawer.dart';
 import 'package:notes/editor/note_editor.dart';
 import 'package:notes/editor/repo_manager.dart';
@@ -37,18 +39,12 @@ class NoteHandlerState extends State<NoteHandler> {
     })()
   );
 
+  late final gitManager = GitStatus(handler: this);
+  late final fileBrowserState = FileBrowserState(root: repoRoot, open: [], git: gitManager);
+
   void markNoteModified(NoteEditor editor) => repo.markModified(editor.widget.file, editor);
 
   void openFile(File file) => setState(() => note = file);
-
-  Widget leftDrawer(BuildContext context) => LeftDrawer(
-    dir: repoRoot,
-    openFile: (file) {
-      // Close the drawer
-      Navigator.pop(context);
-      setState(() => note = file);
-    },
-  );
 
   @override
   Widget build(BuildContext context) {
@@ -91,7 +87,16 @@ class NoteHandlerState extends State<NoteHandler> {
               ]),
             ],
           ),
-          drawer: leftDrawer(context),
+          drawer: LeftDrawer(child:
+              FileBrowser(
+                state: fileBrowserState,
+                openFile: (file) {
+                  // Close the drawer
+                  Navigator.pop(context);
+                  setState(() => note = file);
+                },
+              ),
+          ),
           body: (
             (snapshot.connectionState != ConnectionState.done) ? const Text('LOADING')
             : (data == null) ? const Text('Null data')

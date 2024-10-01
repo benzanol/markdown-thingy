@@ -3,60 +3,66 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:notes/drawer/file_ops.dart';
+import 'package:notes/drawer/git_manager.dart';
 
 
 const Color directoryColor = Colors.blueGrey;
 
 
+class FileBrowserState {
+  FileBrowserState({required this.root, required this.open, required this.git});
+  final Directory root;
+  final List<String> open;
+  final GitStatus git;
+}
+
+
 class FileBrowser extends StatelessWidget {
-  const FileBrowser({super.key, required this.dir, this.openFile});
-  final Directory dir;
+  const FileBrowser({super.key, required this.state, required this.openFile});
+  final FileBrowserState state;
   final Function(File)? openFile;
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    behavior: HitTestBehavior.opaque,
-    onLongPressStart: (details) async {
-      final pos = details.globalPosition;
-      final result = await showMenu(
-        context: context,
-        position: RelativeRect.fromLTRB(pos.dx, pos.dy, pos.dx, pos.dy),
-        items: _creationPopupButtons(context, dir),
-      );
-      result?.call();
-    },
-    child: ListView(
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 10),
-          child: Text(
-            fileName(dir),
-            style: const TextStyle(color: directoryColor, fontSize: 35),
+  Widget build(BuildContext context) => ListView(
+    children: [
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 10),
+            child: Text(
+              fileName(state.root),
+              style: const TextStyle(color: directoryColor, fontSize: 35),
+            ),
           ),
-        ),
-        FileBrowserDirectory(dir: dir, openFile: openFile),
-      ],
-    ),
+          state.git.widget(),
+        ],
+      ),
+      _FileBrowserDirectory(dir: state.root, browser: this),
+    ],
   );
 }
 
-class FileBrowserDirectory extends StatefulWidget {
-  const FileBrowserDirectory({super.key, required this.dir, this.openFile, this.depth = 0});
+
+class _FileBrowserDirectory extends StatefulWidget {
+  const _FileBrowserDirectory({required this.dir, required this.browser, this.depth = 0});
   final Directory dir;
-  final Function(File)? openFile;
+  final FileBrowser browser;
   final int depth;
 
   @override
-  State<FileBrowserDirectory> createState() => _FileBrowserDirectoryState();
+  State<_FileBrowserDirectory> createState() => _FileBrowserDirectoryState();
 }
 
-class _FileBrowserDirectoryState extends State<FileBrowserDirectory> {
+class _FileBrowserDirectoryState extends State<_FileBrowserDirectory> {
   _FileBrowserDirectoryState();
+
+  Directory get root => widget.browser.state.root;
+  List<String> get open => widget.browser.state.open;
 
   List<Directory>? subDirs;
   List<File>? subFiles;
 
-  Set<String> openDirs = {};
   FileSystemEntity? hoverFile;
 
   late StreamSubscription<FileSystemEvent> _listener;
@@ -118,12 +124,12 @@ class _FileBrowserDirectoryState extends State<FileBrowserDirectory> {
         result?.call();
       },
       onTap: () => setState(() {
-          if (f is Directory && openDirs.contains(f.path)) {
-            openDirs.remove(f.path);
+          if (f is Directory && open.contains(f.path)) {
+            open.remove(f.path);
           } else if (f is Directory) {
-            openDirs.add(f.path);
+            open.add(f.path);
           } else if (f is File) {
-            widget.openFile?.call(f);
+            widget.browser.openFile?.call(f);
           }
       }),
 
@@ -142,8 +148,8 @@ class _FileBrowserDirectoryState extends State<FileBrowserDirectory> {
 
     final rows = [...dirs, ...files].expand((f) => [
         _fileNameWidget(f),
-        ...(!(f is Directory && openDirs.contains(f.path)) ? <Widget>[] : [
-            FileBrowserDirectory(dir: f, openFile: widget.openFile, depth: widget.depth + 1),
+        ...(!(f is Directory && open.contains(f.path)) ? <Widget>[] : [
+            _FileBrowserDirectory(dir: f, browser: widget.browser, depth: widget.depth + 1),
         ])
     ]).toList();
 

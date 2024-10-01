@@ -44,6 +44,8 @@ void runExtensionCode(LuaContext lua, File indexFile, Structure struct) {
 
 Future<void> loadExtensions(LuaContext lua, Directory rootDir) async {
   final extensionsDir = Directory.fromUri(rootDir.uri.resolve(extDirectory));
+  if (!await extensionsDir.exists()) return;
+
   final subDirs = (await extensionsDir.list().toList()).whereType<Directory>();
   final maybeExtensions = (await Future.wait(
       subDirs.map((dir) async {
