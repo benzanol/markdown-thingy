@@ -1,90 +1,63 @@
-import 'dart:async';
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:notes/editor/actions.dart';
-import 'package:notes/editor/builtin_actions.dart';
 import 'package:notes/editor/note_handler.dart';
-import 'package:notes/editor/structure_widget.dart';
 import 'package:notes/structure/structure.dart';
-import 'package:notes/structure/structure_type.dart';
-import 'package:notes/structure/text.dart';
+import 'package:notes/structure/structure_parser.dart';
+import 'package:notes/structure/structure_widget.dart';
+import 'package:notes/utils/icon_btn.dart';
 
 
-const double hMargin = 8;
-const double vSpace = 8;
-const double textPadding = 8;
-const Color borderColor = Colors.grey;
+class NoteEditor {
+  NoteEditor({required this.handler, required this.file});
+  final NoteHandler handler;
+  final String file;
+  late final StructureParser sp = StructureParser.fromFileOrText(file);
+  late Structure struct = sp.parse(handler.fs.readOrErr(file));
 
+  bool unsaved = false;
+  bool isRaw = false;
 
-class NoteEditorWidget extends StatefulWidget {
-  const NoteEditorWidget({
-      super.key,
-      required this.handler,
-      required this.file,
-      required this.init,
-      this.isRaw = false,
-  });
-  final NoteHandlerState handler;
-  final File file;
-  final String init;
-  final bool isRaw;
+  final Set<StructureHeading> foldedHeadings = {};
+  Object? focused; // StructureHeading | StructureElement | TextEdittingController | CodeController
 
-  @override
-  State<NoteEditorWidget> createState() => NoteEditor();
+  void markUnsaved() {
+    if (unsaved) return;
+    unsaved = true;
+    handler.refreshWidget();
+  }
+
+  void save() {
+    if (!unsaved) return;
+    unsaved = false;
+    handler.fs.writeOrErr(file, sp.format(struct));
+    handler.refreshWidget();
+  }
+
+  void setRaw(newRaw) {
+    if (isRaw == newRaw) return;
+    isRaw = newRaw;
+
+    if (newRaw) {
+      final elem = StructureText(sp.format(struct));
+      struct = Structure(props: {}, content: [elem], headings: []);
+    } else {
+      struct = sp.parse(sp.format(struct));
+    }
+
+    handler.refreshWidget();
+  }
+
+  void setFocused(Object? newFocus) {
+    print('Focused: $newFocus');
+    if (newFocus == focused) return;
+    focused = newFocus;
+    handler.refreshWidget();
+  }
 }
 
-class NoteEditor extends State<NoteEditorWidget> {
-  NoteEditor();
 
-  NoteHandlerState get handler => widget.handler;
-  File get file => widget.file;
-  String get init => widget.init;
-  bool get isRaw => widget.isRaw;
-
-  late final StructureParser sp = StructureParser.fromFileOrDefault(file.path);
-  late final Structure struct = (
-    !isRaw ? sp.parse(init)
-    : Structure(props: {}, headings: [], content: [StructureText(init)])
-  );
-
-  String toText() => sp.format(struct);
-  void markModified() => widget.handler.markNoteModified(this);
-
-
-  // Whatever is currently focused
-  Focusable? focused;
-  StructureElement? focusedElement;
-  StructureHeading? focusedHeading;
-  void focus(Focusable? newFocus) => setState(() => focused = newFocus);
-
-  Future<void> performAction<T>(EditorAction<T> action, T obj) async {
-    final props = EditorActionProps(obj: obj, context: context);
-    await action.onPress(props);
-
-    if (props.unfocus) {
-      focused = null;
-    } else if (props.newFocus != null) {
-      focused = props.newFocus;
-    } else if (props.newFocusedElement != null) {
-      focused = null;
-      focusedElement = props.newFocusedElement;
-    } else if (props.newFocusedHeading != null) {
-      focused = null;
-      focusedHeading = props.newFocusedHeading;
-    }
-
-    final focusChanged = props.unfocus ||
-    (props.newFocus ?? props.newFocusedElement ?? props.newFocusedHeading) != null;
-
-    if (focusChanged || focused?.shouldRefresh == true) {
-      setState(() {});
-    }
-
-    focused?.afterAction();
-
-    markModified();
-  }
+class NoteEditorWidget extends StatelessWidget {
+  NoteEditorWidget({required this.note}) : super(key: GlobalObjectKey(note));
+  final NoteEditor note;
 
   @override
   Widget build(BuildContext context) {
@@ -97,15 +70,15 @@ class NoteEditor extends State<NoteEditorWidget> {
         thumbVisibility: true,
         controller: scrollController,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: hMargin, vertical: vSpace),
+          padding: const EdgeInsets.symmetric(horizontal: hMargin, vertical: vPad),
           controller: scrollController,
-          child: StructureWidget(note: this, structure: struct, sp: sp),
+          child: StructureWidget(note: note, struct: note.struct, depth: 0),
         ),
       ),
     );
 
     return GestureDetector(
-      onTap: () => focus(null),
+      onTap: () => note.setFocused(null),
       child: Column(
         children: [
           Expanded(child: noteBody),
@@ -113,14 +86,15 @@ class NoteEditor extends State<NoteEditorWidget> {
           // focusedElement gets initialized
           Builder(builder: (context) => Container(
               color: Theme.of(context).colorScheme.secondary,
-              child: Row(
-                children: (
-                  (focused?.actions ?? [EditorActionsBar<Structure>(structureActions, struct)])
-                  .expand((bar) => bar.actions.map((action) => (
-                        action.buttonWidget(this, context, bar.param)
-                  )))
-                  .toList()
-                )
+              child: const Row(
+                children: [IconBtn(icon: Icons.abc)],
+                // children: (
+                //   (focused?.actions ?? [EditorActionsBar<Structure>(structureActions, struct)])
+                //   .expand((bar) => bar.actions.map((action) => (
+                //         action.buttonWidget(this, context, bar.param)
+                //   )))
+                //   .toList()
+                // )
               ),
           )),
         ],

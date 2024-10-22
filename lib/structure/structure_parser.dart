@@ -1,8 +1,4 @@
-import 'package:notes/structure/code.dart';
-import 'package:notes/structure/lens.dart';
 import 'package:notes/structure/structure.dart';
-import 'package:notes/structure/table.dart';
-import 'package:notes/structure/text.dart';
 
 const languageFileExtensions = {
   'dart': 'dart',
@@ -24,7 +20,7 @@ abstract class StructureParser {
     : path.endsWith('.txt') ? const OrgStructureMarkup()
     : CodeStructureParser.fromFile(path)
   );
-  static StructureParser fromFileOrDefault(String path) => (
+  static StructureParser fromFileOrText(String path) => (
     StructureParser.fromFile(path) ?? const TextStructureParser()
   );
 

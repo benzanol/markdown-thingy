@@ -1,12 +1,10 @@
 import 'package:lua_dardo/lua.dart';
-import 'package:notes/lua/context.dart';
-import 'package:notes/lua/lua_object.dart';
+import 'package:notes/lua/object.dart';
 
 
 String luaTypeName(LuaType? type) => type == null ? 'nil' : type.name.substring(3).toLowerCase();
 
-void ensureArgCount(LuaContext context, int min, {int? max}) {
-  final count = context.stackSize();
+void ensureArgCount(int count, int min, {int? max}) {
   if (count < min || count > (max ?? min)) {
     final argsStr = max == null ? '$min' : '$min-$max';
     throw 'Expected $argsStr arguments, but found $count';

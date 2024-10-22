@@ -1,18 +1,19 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lua_dardo/lua.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
-import 'package:notes/components/dashed_line.dart';
-import 'package:notes/components/hscroll.dart';
-import 'package:notes/editor/note_editor.dart';
-import 'package:notes/lua/lua_ensure.dart';
-import 'package:notes/lua/lua_object.dart';
-import 'package:notes/structure/lens.dart';
+import 'package:notes/lua/context.dart';
+import 'package:notes/utils/dashed_line.dart';
+import 'package:notes/utils/hscroll.dart';
+import 'package:notes/lua/ensure.dart';
+import 'package:notes/lua/object.dart';
 
 
-const double luaUiGap = textPadding;
+const double luaUiGap = 8;
+const double luaUiPad = 8;
 const double luaUiTextSize = 16;
 const double luaUiRadius = 6;
 
@@ -47,36 +48,38 @@ class InvalidLuaUiError extends Error {
 }
 
 
-typedef PerformAction = void Function(LuaUi, LuaAction);
+// A ui action is either a button press or a text field change
+typedef LuiAction = FutureOr<void> Function(LuaContext lua);
+typedef PerformUiAction = void Function(LuiComponent component, LuiAction action);
 
-abstract class LuaUi {
-  static LuaUi parseRoot(LuaObject obj) {
-    final ui = LuaUi.parse(obj);
+abstract class LuiComponent {
+  static LuiComponent parse(LuaObject obj) {
+    final ui = LuiComponent._parseRec(obj);
     ui.setPath([]);
     return ui;
   }
-  static LuaUi parse(LuaObject obj) {
+  static LuiComponent _parseRec(LuaObject obj) {
     if (obj is LuaString) {
-      return LuaUi.parse(LuaTable({LuaString('type'): LuaString('label'), LuaNumber(1): obj}));
+      return LuiComponent._parseRec(LuaTable({LuaString('type'): LuaString('label'), LuaNumber(1): obj}));
     }
 
     final table = ensureLuaTable(obj, 'ui');
     final uiType = ensureLuaString(table['type'] ?? LuaNil(), 'ui.type');
 
     switch (uiType) {
-      case 'empty': return LuaEmptyUi(table);
-      case 'label': return LuaLabelUi(table);
-      case 'field': return LuaTextFieldUi(table);
-      case 'column': return LuaColumnUi(table);
-      case 'row': return LuaRowUi(table);
-      case 'table': return LuaTableUi(table);
-      case 'stack': return LuaStackUi(table);
+      case 'empty': return LuiEmpty(table);
+      case 'label': return LuiLabel(table);
+      case 'field': return LuiTextField(table);
+      case 'column': return LuiColumn(table);
+      case 'row': return LuiRow(table);
+      case 'table': return LuiTable(table);
+      case 'stack': return LuiStack(table);
       default: throw InvalidLuaUiError('Invalid ui type: $uiType');
     }
   }
 
 
-  LuaUi(this.table);
+  LuiComponent(this.table);
   final LuaTable table;
   List<int> path = [];
 
@@ -94,9 +97,9 @@ abstract class LuaUi {
     }).where((val) => val != null).firstOrNull;
   }
 
-  Widget innerWidget(PerformAction onChange);
+  Widget innerWidget(PerformUiAction performAction);
   @nonVirtual
-  Widget widget(PerformAction onChange) {
+  Widget widget(PerformUiAction performAction) {
     final p = doubField('p') ?? 0;
     final padding = EdgeInsets.only(
       left:   p + (doubField('pl') ?? 0) + (doubField('px') ?? 0),
@@ -108,7 +111,7 @@ abstract class LuaUi {
     final container = Container(
       padding: padding,
       color: _parseColor(strField('bg')),
-      child: innerWidget(onChange),
+      child: innerWidget(performAction),
     );
 
     if (table['press']?.type != LuaType.luaFunction) return container;
@@ -125,7 +128,7 @@ abstract class LuaUi {
             'width': size.width,
             'height': size.height,
           };
-          onChange(this, (lua) => lua.performPressAction(args));
+          performAction(this, (lua) => lua.performPressAction(args));
         },
         child: container,
       ),
@@ -133,15 +136,15 @@ abstract class LuaUi {
   }
 }
 
-class LuaEmptyUi extends LuaUi {
-  LuaEmptyUi(super.table);
+class LuiEmpty extends LuiComponent {
+  LuiEmpty(super.table);
 
   @override
-  Widget innerWidget(PerformAction onChange) => Container();
+  Widget innerWidget(PerformUiAction performAction) => Container();
 }
 
-class LuaLabelUi extends LuaUi {
-  LuaLabelUi(super.table)
+class LuiLabel extends LuiComponent {
+  LuiLabel(super.table)
   : content = table.listValues.firstOrNull?.value?.toString() ?? '';
 
   final String content;
@@ -154,7 +157,7 @@ class LuaLabelUi extends LuaUi {
 
 
   @override
-  Widget innerWidget(PerformAction onChange) {
+  Widget innerWidget(PerformUiAction performAction) {
     final style = TextStyle(fontSize: luaUiTextSize, color: fgColor);
     final label = (
       theme == 'button' || theme == 'icon-button' ? Transform.scale(
@@ -184,20 +187,20 @@ class LuaLabelUi extends LuaUi {
   }
 }
 
-class LuaTextFieldUi extends LuaUi {
-  LuaTextFieldUi(super.table)
+class LuiTextField extends LuiComponent {
+  LuiTextField(super.table)
   : content = table.listValues.firstOrNull?.value?.toString() ?? '';
   String content;
 
 
   @override
-  Widget innerWidget(PerformAction onChange) {
+  Widget innerWidget(PerformUiAction performAction) {
     final grow = table['large']?.isTruthy == true;
     return _LongLastingTextField(
       text: content,
       onChange: (newText) {
         content = newText;
-        onChange(this, (lua) => lua.performChangeAction(newText));
+        performAction(this, (lua) => lua.performChangeAction(newText));
       },
       grow: grow,
       maxLines: grow ? null : 1,
@@ -205,10 +208,10 @@ class LuaTextFieldUi extends LuaUi {
   }
 }
 
-class LuaColumnUi extends LuaUi {
-  LuaColumnUi(super.table)
-  : children = table.listValues.map(LuaUi.parse).toList();
-  final List<LuaUi> children;
+class LuiColumn extends LuiComponent {
+  LuiColumn(super.table)
+  : children = table.listValues.map(LuiComponent._parseRec).toList();
+  final List<LuiComponent> children;
 
 
   @override
@@ -220,23 +223,23 @@ class LuaColumnUi extends LuaUi {
   }
 
   @override
-  Widget innerWidget(PerformAction onChange) {
+  Widget innerWidget(PerformUiAction performAction) {
     final align = enumField('align', CrossAxisAlignment.values);
     final gap = doubField('gap') ?? luaUiGap;
     return Column(
       crossAxisAlignment: align ?? CrossAxisAlignment.start,
       children: children.map((child) => Padding(
           padding: EdgeInsets.only(bottom: child == children.last ? 0 : gap),
-          child: child.widget(onChange),
+          child: child.widget(performAction),
       )).toList(),
     );
   }
 }
 
-class LuaRowUi extends LuaUi {
-  LuaRowUi(super.table)
-  : children = table.listValues.map(LuaUi.parse).toList();
-  final List<LuaUi> children;
+class LuiRow extends LuiComponent {
+  LuiRow(super.table)
+  : children = table.listValues.map(LuiComponent._parseRec).toList();
+  final List<LuiComponent> children;
 
 
   @override
@@ -248,7 +251,7 @@ class LuaRowUi extends LuaUi {
   }
 
   @override
-  Widget innerWidget(PerformAction onChange) {
+  Widget innerWidget(PerformUiAction performAction) {
     final expanded = table['expanded']?.isTruthy == true;
     final align = enumField('align', CrossAxisAlignment.values);
     final gap = doubField('gap') ?? luaUiGap;
@@ -257,7 +260,7 @@ class LuaRowUi extends LuaUi {
       children: children.map((child) {
           final inside = Padding(
             padding: EdgeInsets.only(right: child == children.last ? 0 : gap),
-            child: child.widget(onChange),
+            child: child.widget(performAction),
           );
           return expanded ? Expanded(child: inside) : inside;
       }).toList()
@@ -268,14 +271,14 @@ class LuaRowUi extends LuaUi {
   }
 }
 
-class LuaTableUi extends LuaUi {
-  LuaTableUi(super.table)
+class LuiTable extends LuiComponent {
+  LuiTable(super.table)
   : rows = table.listValues.map((row) => (
       table: row is! LuaTable ? (throw InvalidLuaUiError('Invalid table row: $row')) : row,
       // ignore: unnecessary_cast
-      cells: (row as LuaTable).listValues.map(LuaUi.parse).toList()
+      cells: (row as LuaTable).listValues.map(LuiComponent._parseRec).toList()
   )).toList();
-  final List<({LuaTable table, List<LuaUi> cells})> rows;
+  final List<({LuaTable table, List<LuiComponent> cells})> rows;
 
 
   @override
@@ -289,7 +292,7 @@ class LuaTableUi extends LuaUi {
   }
 
   @override
-  Widget innerWidget(PerformAction onChange) => Table(
+  Widget innerWidget(PerformUiAction performAction) => Table(
     border: TableBorder.all(),
     defaultColumnWidth: const IntrinsicColumnWidth(),
     children: rows.map((row) => TableRow(
@@ -298,8 +301,8 @@ class LuaTableUi extends LuaUi {
             child: ConstrainedBox(
               constraints: const BoxConstraints(minWidth: 50),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: textPadding, vertical: textPadding/2),
-                child: cell.widget(onChange),
+                padding: const EdgeInsets.symmetric(horizontal: luaUiPad, vertical: luaUiPad/2),
+                child: cell.widget(performAction),
               ),
             )
         )).toList(),
@@ -307,18 +310,18 @@ class LuaTableUi extends LuaUi {
   );
 }
 
-class LuaStackUi extends LuaUi {
-  LuaStackUi(super.table) {
+class LuiStack extends LuiComponent {
+  LuiStack(super.table) {
     for (final t in table.listValues.whereType<LuaTable>()) {
       if (t['type']?.value == 'line') {
-        lines.add(LuaEmptyUi(t));
+        lines.add(LuiEmpty(t));
       } else {
-        children.add(LuaUi.parse(t));
+        children.add(LuiComponent._parseRec(t));
       }
     }
   }
-  final List<LuaUi> children = [];
-  final List<LuaEmptyUi> lines = [];
+  final List<LuiComponent> children = [];
+  final List<LuiEmpty> lines = [];
 
   @override
   void setPath(List<int> p) {
@@ -334,7 +337,7 @@ class LuaStackUi extends LuaUi {
     : raw.toDouble() * max
   );
 
-  static Positioned generateChildWidget(LuaUi child, PerformAction onChange, BoxConstraints box) {
+  static Positioned generateChildWidget(LuiComponent child, PerformUiAction onChange, BoxConstraints box) {
     return Positioned(
       left: dimension(child.numField('x'), box.maxWidth),
       top: dimension(child.numField('y'), box.maxHeight),
@@ -344,7 +347,7 @@ class LuaStackUi extends LuaUi {
     );
   }
 
-  static Positioned generateLineWidget(LuaUi line, PerformAction onChange, BoxConstraints box) {
+  static Positioned generateLineWidget(LuiComponent line, PerformUiAction onChange, BoxConstraints box) {
     final w = dimension(line.numField('width'), box.maxWidth);
     final h = dimension(line.numField('height'), box.maxHeight);
     return Positioned(
@@ -361,13 +364,13 @@ class LuaStackUi extends LuaUi {
   }
 
   @override
-  Widget innerWidget(PerformAction onChange) => SizedBox(
+  Widget innerWidget(PerformUiAction performAction) => SizedBox(
     height: doubField('height') ?? 100,
     child: LayoutBuilder(
       builder: (context, constraints) => Stack(
         children: [
-          ...children.map((child) => generateChildWidget(child, onChange, constraints)),
-          ...lines.map((child) => generateLineWidget(child, onChange, constraints)),
+          ...children.map((child) => generateChildWidget(child, performAction, constraints)),
+          ...lines.map((child) => generateLineWidget(child, performAction, constraints)),
         ],
       ),
     ),
@@ -402,10 +405,10 @@ class _LongLastingTextFieldState extends State<_LongLastingTextField> {
     style: const TextStyle(fontSize: luaUiTextSize),
     decoration: const InputDecoration(
       border: OutlineInputBorder(
-        borderSide: BorderSide(color: borderColor),
+        borderSide: BorderSide(color: Colors.black),
         borderRadius: BorderRadius.all(Radius.circular(luaUiRadius)),
       ),
-      contentPadding: EdgeInsets.all(textPadding),
+      contentPadding: EdgeInsets.all(luaUiPad),
       isDense: true,
     ),
   );

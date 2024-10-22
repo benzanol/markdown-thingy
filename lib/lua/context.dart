@@ -1,111 +1,186 @@
-import 'dart:io';
 import 'dart:math';
 
-import 'package:flutter/material.dart';
 import 'package:lua_dardo/lua.dart';
+import 'package:notes/editor/extensions.dart';
 import 'package:notes/editor/note_handler.dart';
-import 'package:notes/extensions/lenses.dart';
-import 'package:notes/extensions/load_extensions.dart';
-import 'package:notes/lua/init.dart';
-import 'package:notes/lua/lua_object.dart';
-import 'package:notes/lua/result.dart';
-import 'package:notes/lua/to_lua.dart';
+import 'package:notes/editor/repo_file_manager.dart';
+import 'package:notes/lua/object.dart';
 import 'package:notes/lua/ui.dart';
 
 
-final LuaState _globalLuaState = createLuaState();
+// Lua variable used to store parsed tables to allow for circular references
+const String tableCacheVariable = '*table-cache*';
+
 
 class LuaContext {
-  static LuaContext? current;
-
+  LuaContext.handler(this.handler) : _lua = LuaState.newState();
   final LuaState _lua;
-  final BuildContext context;
-  final NoteHandlerState handler;
-  final Directory location;
-  final Directory? ext;
-
-  LuaContext(this._lua, this.handler, this.context, {required this.location, this.ext});
-  LuaContext.global(this.handler, this.context, {Directory? location, this.ext})
-  : _lua = _globalLuaState, location = location ?? handler.repoRoot;
-
-  LuaContext inDir(Directory d) => LuaContext(_lua, handler, context, location: d, ext: ext);
-  LuaContext inExt(Directory d) => LuaContext(_lua, handler, context, location: d, ext: d);
+  final NoteHandler handler;
 
 
-  int stackSize() => _lua.getTop();
+  // Calling arbitrary user code
 
-  void push(dynamic jsony) => toLua(jsony).put(_lua);
-
-  LuaObject object(int index) => LuaObject.parse(_lua, index: index);
-
-  List<LuaObject> stack() {
-    final length = _lua.getTop();
-    return List.generate(length, (idx) => object(idx - length));
-  }
-
-
-  void contextCall(int nargs, int nresults) {
+  static LuaContext? current;
+  static String? currentPwd;
+  static String? currentExtension;
+  void _callUserFunction(int nargs, int nresults, {String? pwd, String? ext}) {
     final oldCurrent = LuaContext.current;
+    final oldPwd = LuaContext.currentPwd;
+    final oldExtension = LuaContext.currentExtension;
+
     LuaContext.current = this;
+    LuaContext.currentPwd = pwd ?? LuaContext.currentPwd;
+    LuaContext.currentExtension = ext ?? LuaContext.currentExtension;
+
     try {
       _lua.call(nargs, nresults);
     } finally {
       LuaContext.current = oldCurrent;
+      LuaContext.currentPwd = oldPwd;
+      LuaContext.currentExtension = oldExtension;
     }
   }
 
-  void executeOrError({String? code, int? nargs}) {
-    if (code != null) {
-      _lua.loadString(code);
-      contextCall(0, 1);
-    } else {
-      contextCall(nargs ?? 0, 1);
-    }
+  LuaObject executeUserCode(String code) {
+    _lua.loadString(code);
+    _callUserFunction(0, 1);
+    return _parse();
   }
 
-  LuaResult executeResult({String? code, int? nargs}) {
+  void executeExtensionCode(String ext, String code) {
     try {
-      executeOrError(code: code, nargs: nargs);
-      return LuaSuccess(object(-1));
-    } catch (e) {
-      return LuaFailure(e.toString());
+      _lua.loadString(code);
+      _callUserFunction(0, 1);
+      _setTableEntry(extsVariable, [ext, extsReturnField]);
+    } catch (err) {
+      print('Error loading $ext: $err');
     }
   }
 
 
-  String resolvePath(String relative) {
-    final path = (
-      relative.startsWith('~/') ? handler.repoRoot.uri.resolve(relative.substring(2)).path
-      : File(relative).isAbsolute ? relative
-      : location.uri.resolve(relative).path
-    );
+  // Working with the stack
 
-    if (!path.startsWith(handler.repoRoot.path)) {
-      throw 'File $relative is outside of the repo';
+  LuaObject _parse({int index = -1, int? maxDepth, List<LuaTable>? tableCache}) {
+    final nextMaxDepth = maxDepth == null ? null : maxDepth - 1;
+
+    // Reset the table cache
+    if (tableCache == null) {
+      tableCache = [];
+      _lua.newTable();
+      _lua.setGlobal(tableCacheVariable);
+    }
+
+    if (_lua.isNil(index)) {
+      return LuaNil();
+    } else if (_lua.isInteger(index)) {
+      return LuaNumber(_lua.toInteger(index));
+    } else if (_lua.isNumber(index)) {
+      return LuaNumber(_lua.toNumber(index));
+    } else if (_lua.isBoolean(index)) {
+      return LuaBoolean(_lua.toBoolean(index));
+    } else if (_lua.isTable(index)) {
+      if (maxDepth == 0) return LuaTable({});
+
+      // Check if this is in the table cache
+      _lua.pushValue(index);
+      _lua.getGlobal(tableCacheVariable);
+      _lua.insert(-2);
+      _lua.getTable(-2);
+      // Stack looks like [..., tableCache, index?]
+      final cacheIndex = _lua.toIntegerX(-1);
+      _lua.pop(2);
+      if (cacheIndex != null) {
+        return tableCache[cacheIndex];
+      }
+
+      // Add this table to the table cache
+      _lua.pushValue(index);
+      _lua.getGlobal(tableCacheVariable);
+      _lua.insert(-2);
+      _lua.pushInteger(tableCache.length);
+      // Stack looks like [..., tableCache, table, index]
+      _lua.setTable(-3);
+      _lua.pop(1);
+
+      final table = LuaTable({});
+      tableCache.add(table);
+
+      // When lua iterates through tables, it expects the stack to look like [table, ..., prevKey],
+      // where table is at position index-1 (since it was at index before adding the key.)
+      // Start with a nil key to indicate that the iteration hasn't started.
+      _lua.pushNil();
+      final indexNow = index < 0 ? index - 1 : index;
+      while (_lua.next(indexNow)) {
+        LuaObject value = _parse(maxDepth: nextMaxDepth, tableCache: tableCache);
+        _lua.pop(1);  // Pop the value, keep the key for the next iteration
+        LuaObject key = _parse(maxDepth: nextMaxDepth, tableCache: tableCache);
+        table.value[key] = value;
+      }
+
+      return table;
+    } else if (_lua.isString(index)) {
+      return LuaString(_lua.toStr(index)!);
+    } else {
+      return LuaOther(_lua.type(index));
+    }
+  }
+
+  void _push(LuaObject obj) {
+    switch (obj) {
+      case LuaNil(): return _lua.pushNil();
+      case LuaString(): return _lua.pushString(obj.value);
+      case LuaNumber(): {
+        final n = obj.value;
+        if (n is int) {
+          _lua.pushInteger(n);
+        } else {
+          _lua.pushNumber(n.toDouble());
+        }
+        return;
+      }
+      case LuaBoolean(): return _lua.pushBoolean(obj.value);
+      case LuaTable(): {
+        _lua.newTable();
+        for (final entry in obj.value.entries) {
+          _push(entry.key);
+          _push(entry.value);
+          _lua.setTable(-3);
+        }
+        return;
+      }
+      case LuaOther(): _lua.pushNil();
+    }
+  }
+
+  // For debugging purposes
+  void printStack() {
+    final h = _lua.getTop();
+    print(List.generate(h, (idx) => _parse(index: idx - h)));
+  }
+
+
+  // File system
+
+  String resolvePath(String relative) => concatPaths(currentPwd ?? '/', relative);
+
+  String resolveExistsOrError(String relative, {FileType type = FileType.file, bool create = false}) {
+    final path = resolvePath(relative);
+    final actualType = handler.fs.exists(path);
+
+    if (actualType == null && create) {
+      handler.fs.createOrErr(path, ft: type);
+    } else if (actualType == null) {
+      throw '$relative does not exist';
+    } else if (actualType != type) {
+      throw '$relative is a $actualType';
     }
     return path;
   }
 
-  File resolveExistingFile(String relative, {bool create = false}) {
-    final file = File(resolvePath(relative));
-    final exists = file.existsSync();
 
-    if (!exists && create) {
-      file.createSync();
-    } else if (!exists) {
-      throw 'File $relative does not exist';
-    }
-    return file;
-  }
+  // Table Utils
 
-  Directory resolveExistingDir(String relative) {
-    final dir = Directory(resolvePath(relative));
-    if (!dir.existsSync()) throw 'Directory $relative does not exist';
-    return dir;
-  }
-
-
-  void pushTableEntry(String variable, List<dynamic> fields) {
+  void _pushTableEntry(String variable, List<dynamic> fields) {
     _lua.getGlobal(variable);
 
     for (final field in fields) {
@@ -154,7 +229,7 @@ class LuaContext {
   }
 
   // Put the top object in the stack into the table (and removes it from the stack)
-  void setTableEntry(String variable, List<String> fields) {
+  void _setTableEntry(String variable, List<String> fields) {
     _getCreateTables(variable, fields.sublist(0, fields.length - 1));
 
     // State should look like [value, table]
@@ -164,11 +239,14 @@ class LuaContext {
   }
 
 
-  void pushUiComponent(int lensId, LuaUi component) {
+  // Ui functions
+
+  // Grab a lui component from the cache of active lens instances
+  void pushLuiComponent(int lensId, LuiComponent comp) {
     _lua.setTop(0);
 
-    pushTableEntry(instancesVariable, ['$lensId', lensesUiField]);
-    for (final index in component.path) {
+    _pushTableEntry(instancesVariable, ['$lensId', lensesUiField]);
+    for (final index in comp.path) {
       _lua.pushInteger(index + 1); // Lua is one indexed
       _lua.getTable(-2);
       // Remove the old table
@@ -177,10 +255,10 @@ class LuaContext {
     }
   }
 
-  void performPressAction(Map<String, dynamic> arguments) {
+  void performPressAction(Map<String, dynamic> actionArgs) {
     _lua.getField(-1, 'press');
-    push(arguments);
-    contextCall(1, 0);
+    _push(LuaObject.fromJson(actionArgs));
+    _callUserFunction(1, 0);
   }
 
   void performChangeAction(String content) {
@@ -188,63 +266,24 @@ class LuaContext {
     // Call the function with the string argument
     if (_lua.isFunction(-1)) {
       _lua.pushString(content);
-      contextCall(1, 0);
+      _callUserFunction(1, 0);
     }
   }
 
-  void performLensButtonAction(LensExtension lens, int actionIdx, int instanceId) {
-    _lua.setTop(0);
 
-    // Load the press function
-    pushTableEntry(extsVariable, [...lens.lensFields, actionsField, actionIdx+1, 'press']);
-    if (!_lua.isFunction(-1)) throw 'press is not a function';
+  // Generating lenses
 
-    // Load the instance state
-    pushTableEntry(instancesVariable, ['$instanceId', lensesStateField]);
-
-    contextCall(1, 0);
-  }
-
-
-  static const luaRequireVariable = "*required*";
-
-  int require(String packagePath, String module) {
-    final modulePath = module.replaceAll('.', '/');
-
-    _lua.getGlobal(luaRequireVariable);
-    final requireTableIndex = _lua.getTop();
-
-    for (final pathOption in packagePath.split(';')) {
-      final relative = pathOption.replaceAll('?', modulePath);
-      final file = File(resolvePath(relative));
-
-      _lua.getField(requireTableIndex, file.path);
-      if (!_lua.isNil(-1)) return 1;
-      _lua.pop(1);
-
-      if (file.existsSync()) {
-        executeOrError(code: file.readAsStringSync());
-        _lua.pushValue(-1);
-        _lua.setField(requireTableIndex, file.path);
-        return 1;
-      }
-    }
-
-    throw 'Module $module does not exist';
-  }
-
-
-  int generateLensState(LensExtension lens, String content) {
+  int initializeLensInstance(LensExtension lens, String content) {
     _lua.setTop(0);
 
     // Call the toState function on the content
-    pushTableEntry(extsVariable, [...lens.lensFields, toStateField]);
+    _pushTableEntry(extsVariable, [...lens.lensFields, toStateField]);
     _lua.pushString(content);
-    contextCall(1, 1);
+    _callUserFunction(1, 1);
 
     // Push the result into the instances table at index `randomId`
     final randomId = Random().nextInt(1000000000);
-    setTableEntry(instancesVariable, [randomId.toString(), lensesStateField]);
+    _setTableEntry(instancesVariable, [randomId.toString(), lensesStateField]);
     return randomId;
   }
 
@@ -252,25 +291,30 @@ class LuaContext {
     _lua.setTop(0);
 
     // Call the text function on the state
-    pushTableEntry(extsVariable, [...lens.lensFields, toTextField]);
-    pushTableEntry(instancesVariable, [id.toString(), lensesStateField]);
-    contextCall(1, 1);
+    _pushTableEntry(extsVariable, [...lens.lensFields, toTextField]);
+    _pushTableEntry(instancesVariable, [id.toString(), lensesStateField]);
+    _callUserFunction(1, 1);
 
     return _lua.toStr(-1)!;
   }
 
-  LuaUi generateLensUi(LensExtension lens, int id) {
+  LuiComponent generateLensUi(LensExtension lens, int id) {
     _lua.setTop(0);
 
     // Call the ui function on the state
-    pushTableEntry(extsVariable, [...lens.lensFields, toUiField]);
-    pushTableEntry(instancesVariable, [id.toString(), lensesStateField]);
-    contextCall(1, 1);
+    _pushTableEntry(extsVariable, [...lens.lensFields, toUiField]);
+    _pushTableEntry(instancesVariable, [id.toString(), lensesStateField]);
+    _callUserFunction(1, 1);
 
     // Copy the value reference, and put it into the instances table
     _lua.pushValue(-1);
-    setTableEntry(instancesVariable, [id.toString(), lensesUiField]);
+    _setTableEntry(instancesVariable, [id.toString(), lensesUiField]);
 
-    return LuaUi.parseRoot(LuaObject.parse(_lua));
+    return LuiComponent.parse(_parse());
+  }
+
+  void disposeLensInstance(int id) {
+    _lua.pushNil();
+    _setTableEntry(extsVariable, [id.toString()]);
   }
 }

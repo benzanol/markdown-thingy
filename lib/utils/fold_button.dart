@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:notes/components/icon_btn.dart';
+import 'package:notes/utils/icon_btn.dart';
 
 
 class FoldButton extends StatelessWidget {
@@ -10,7 +10,7 @@ class FoldButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => IconBtn(
     icon: isFolded ? Icons.keyboard_arrow_right : Icons.keyboard_arrow_down,
-    padding: 5,
+    padding: 3,
     onPressed: () => setFolded?.call(!isFolded),
   );
 }

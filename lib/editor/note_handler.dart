@@ -2,142 +2,138 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
-import 'package:notes/components/icon_btn.dart';
 import 'package:notes/drawer/file_browser.dart';
-import 'package:notes/drawer/git_manager.dart';
+import 'package:notes/drawer/git.dart';
 import 'package:notes/drawer/left_drawer.dart';
+import 'package:notes/editor/extensions.dart';
 import 'package:notes/editor/note_editor.dart';
-import 'package:notes/editor/repo_manager.dart';
-import 'package:notes/extensions/load_extensions.dart';
+import 'package:notes/editor/repo_file_manager.dart';
 import 'package:notes/lua/context.dart';
-import 'package:notes/structure/structure_type.dart';
+import 'package:notes/utils/icon_btn.dart';
 
 
-class NoteHandler extends StatefulWidget {
-  const NoteHandler({super.key});
+const List<String> initFiles = ['index.org', 'index.md'];
+String _openOrCreateInitFile(NoteHandler handler) {
+  final existing = initFiles.where((f) => handler.fs.existsFile(f)).firstOrNull;
+  if (existing != null) return existing;
 
-  @override
-  // ignore: no_logic_in_create_state
-  State<NoteHandler> createState() => NoteHandlerState(
-    repoRoot: Directory('/home/benzanol/Documents/repo'),
-  );
+  handler.fs.createOrErr(initFiles[0]);
+  return initFiles[0];
 }
 
-class NoteHandlerState extends State<NoteHandler> {
-  NoteHandlerState({required this.repoRoot});
-  final Directory repoRoot;
-  late final repo = RepoManager(directory: repoRoot);
 
-  bool _loadedExtensions = false;
-  bool raw = false;
-
-  late List<File> history = [initialFile()];
-  int historyIdx = 0;
-  File get note => history[historyIdx];
-
-  late final gitManager = GitStatus(handler: this);
-  late final fileBrowserState = FileBrowserState(root: repoRoot, open: [], git: gitManager);
-
-  File initialFile() {
-    final existing = ['index.md', 'index.org']
-    .where((f) => repo.repoFile(f).existsSync()).firstOrNull;
-
-    if (existing != null) return repo.repoFile(existing);
-    repo.repoFile('index.md').createSync();
-    return repo.repoFile('index.md');
+class NoteHandler {
+  NoteHandler({required Directory root}) : fs = RepoFileManager(root) {
+    final init = _openOrCreateInitFile(this);
+    note = NoteEditor(handler: this, file: init);
+    history = [init];
   }
 
-  void markNoteModified(NoteEditor editor) => repo.markModified(editor.widget.file, editor);
+  final RepoFileManager fs;
+  late final LuaContext lua = LuaContext.handler(this);
 
-  void openFile(File file) => setState(() {
-      // Cut off redo list
-      history.removeRange(historyIdx+1, history.length);
-      // Remove duplicates
-      history.removeWhere((f) => f.absolute.path == file.absolute.path);
-      history.add(file);
-      historyIdx = history.length - 1;
-  });
+  GithubRepo? git;
 
-  void historyMove(int n) => setState(() {
-      historyIdx = (historyIdx + n).clamp(0, history.length-1);
-  });
+  late NoteEditor note;
+  late List<String> history;
+  int historyIdx = 0;
+
+
+  void refreshWidget() {
+    final state = GlobalObjectKey(this).currentState;
+    if (state is _NoteHandlerWidgetState) state.refresh();
+  }
+
+  void historyMove(int n) {
+    historyIdx = (historyIdx + n).clamp(0, history.length-1);
+  }
+
+  void openFile(String newFile) {
+    // Cut off redo list
+    history.removeRange(historyIdx+1, history.length);
+    // Remove duplicates
+    history.removeWhere((p) => p == newFile);
+    history.add(newFile);
+    historyIdx = history.length - 1;
+
+    note = NoteEditor(handler: this, file: newFile);
+    refreshWidget();
+  }
+}
+
+
+class NoteHandlerWidget extends StatefulWidget {
+  NoteHandlerWidget({required this.handler}) : super(key: GlobalObjectKey(handler));
+  final NoteHandler handler;
+
+  @override
+  State<NoteHandlerWidget> createState() => _NoteHandlerWidgetState();
+}
+
+class _NoteHandlerWidgetState extends State<NoteHandlerWidget> {
+  NoteHandler get handler => widget.handler;
+
+  void refresh() => setState(() {});
+
+  List<IconBtn> leftActions(BuildContext context) => [
+    IconBtn(
+      icon: MdiIcons.menu, padding: 5,
+      onPressed: () => Scaffold.of(context).openDrawer(),
+    ),
+    IconBtn(
+      icon: Icons.arrow_back, padding: 5,
+      onPressed: handler.historyIdx == 0 ? null : () => handler.historyMove(-1),
+    ),
+    IconBtn(
+      icon: Icons.arrow_forward, padding: 5,
+      onPressed: handler.historyIdx == handler.history.length-1 ? null : () => handler.historyMove(1),
+    ),
+  ];
+
+  List<Widget> rightActions() {
+    const double buttonPadding = 4;
+
+    final saveBtn = !handler.note.unsaved ? null : IconBtn(
+      padding: buttonPadding,
+      icon: Icons.save,
+      onPressed: () => handler.note.save(),
+    );
+
+    final ext = isExtensionIndexFile(handler, handler.note.file);
+    final refreshBtn = ext == null ? null : IconBtn(
+      padding: buttonPadding,
+      icon: Icons.refresh,
+      onPressed: () => handler.lua.executeExtensionCode(ext, handler.note.struct.getLuaCode()),
+    );
+
+    return [
+      saveBtn ?? Container(),
+      refreshBtn ?? Container(),
+      const Padding(padding: EdgeInsets.all(3), child: Text('Raw')),
+      Switch(value: handler.note.isRaw, onChanged: handler.note.setRaw),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (!_loadedExtensions) {
-      // Start initialize lenses
-      final lua = LuaContext.global(this, context);
-      loadExtensions(lua, repoRoot).then((_) => setState(() => _loadedExtensions = true));
-      return const Text('Loading Extensions');
-    }
-
-    return FutureBuilder(
-      future: repo.getContents(note),
-      builder: (context, snapshot) {
-        final data = snapshot.data;
-
-        final indexFileRefreshButton = (
-          (isExtensionIndexFile(repoRoot, note) && data != null)
-          ? IconBtn(
-            padding: 8,
-            icon: Icons.refresh,
-            onPressed: () {
-              final lua = LuaContext.global(this, context);
-              final struct = StructureParser.fromFileOrDefault(note.path).parse(data);
-              runExtensionCode(lua, note, struct);
-            },
-          )
-          : Container()
-        );
-
-        return Scaffold(
-          appBar: AppBar(
-            leading: Builder(
-              builder: (context) => Row(
-                children: [
-                  IconBtn(
-                    icon: MdiIcons.menu, padding: 5,
-                    onPressed: () => Scaffold.of(context).openDrawer(),
-                  ),
-                  IconBtn(
-                    icon: Icons.arrow_back, padding: 5,
-                    onPressed: historyIdx == 0 ? null : () => historyMove(-1),
-                  ),
-                  IconBtn(
-                    icon: Icons.arrow_forward, padding: 5,
-                    onPressed: historyIdx == history.length-1 ? null : () => historyMove(1),
-                  ),
-                ],
-              ),
-            ),
-            leadingWidth: 110,
-            title: FittedBox(
-              child: Text(note.path.replaceFirst('${repoRoot.path}/', ''))
-            ),
-            actions: [
-              Row(children: [
-                  indexFileRefreshButton,
-                  const Text('Raw'),
-                  Switch(value: raw, onChanged: (b) => setState(() { raw = b; })),
-              ]),
-            ],
-          ),
-          drawer: LeftDrawer(child:
-            FileBrowser(
-              state: fileBrowserState,
-              openFile: (file) {
-                Navigator.pop(context); // Close the drawer
-                openFile(file);
-              },
-            ),
-          ),
-          body: (
-            (snapshot.connectionState != ConnectionState.done) ? const Text('LOADING')
-            : (data == null) ? const Text('Null data')
-            : NoteEditorWidget(handler: this, file: note, init: data, isRaw: raw)
-          ),
-        );
-      },
+    return Scaffold(
+      appBar: AppBar(
+        leading: Builder(builder: (context) => Row(children: leftActions(context))),
+        leadingWidth: 110,
+        title: FittedBox(child: Text(handler.note.file)),
+        actions: rightActions(),
+      ),
+      drawer: LeftDrawer(child:
+        FileBrowser(
+          handler: handler,
+          dir: '',
+          openFile: (file) {
+            handler.openFile(file);
+            Navigator.of(context).pop();
+          },
+        ),
+      ),
+      body: NoteEditorWidget(note: handler.note),
     );
   }
 }

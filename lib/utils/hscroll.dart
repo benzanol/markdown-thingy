@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:notes/components/with_color.dart';
+import 'package:notes/utils/with_color.dart';
 
 
 class Hscroll extends StatefulWidget {
