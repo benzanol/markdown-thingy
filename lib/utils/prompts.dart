@@ -33,7 +33,7 @@ Future<bool> promptConfirmation(BuildContext context, String question) {
   return showDialog<bool>(
     context: context,
     builder: (BuildContext context) => AlertDialog(
-      content: Text(question),
+      title: Text(question),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),

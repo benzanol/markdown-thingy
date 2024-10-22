@@ -24,10 +24,10 @@ class StructureElementWidget extends StatefulWidget {
   @override
   // ignore: no_logic_in_create_state
   State<StructureElementWidget> createState() => (
-    element is StructureText ? _TextElementWidgetState()
-    : element is StructureCode ? _CodeElementWidgetState()
-    : element is StructureTable ? _TableElementWidgetState()
-    : element is StructureLens ? _LensElementWidgetState()
+    element is StructureText ? TextElementWidgetState()
+    : element is StructureCode ? CodeElementWidgetState()
+    : element is StructureTable ? TableElementWidgetState()
+    : element is StructureLens ? LensElementWidgetState()
     : (throw 'Invalid structure element type')
   );
 }
@@ -47,7 +47,10 @@ extends State<StructureElementWidget> {
   @override
   void dispose() {
     super.dispose();
-    if (note.focused == element || note.focused == this) note.setFocused(null);
+    if (note.focused == element || note.focused == this) {
+      print('Cancelled focus of $this');
+      note.setFocused(null, noRefresh: true);
+    }
   }
 
   @override
@@ -73,7 +76,7 @@ extends State<StructureElementWidget> {
 }
 
 
-class _TextElementWidgetState extends StructureElementWidgetState<StructureText> {
+class TextElementWidgetState extends StructureElementWidgetState<StructureText> {
   @override final String title = 'Text';
 
   late final field = _TextFieldWrapper(
@@ -90,13 +93,13 @@ class _TextElementWidgetState extends StructureElementWidgetState<StructureText>
   Widget bodyWidget(BuildContext context) => _fieldDecoration(context, field, note.focused == this);
 }
 
-class _CodeElementWidgetState extends StructureElementWidgetState<StructureCode> {
+class CodeElementWidgetState extends StructureElementWidgetState<StructureCode> {
   @override final String title = 'Code';
 
   late final languageMode = allLanguages[element.language];
   late final controller = CodeController(text: element.content, language: languageMode);
   final focusNode = FocusNode();
-  late final field = CodeTheme(
+  late final _fieldWidget = CodeTheme(
     data: const CodeThemeData(styles: ideaTheme),
     child: CodeField(
       controller: controller,
@@ -138,23 +141,27 @@ class _CodeElementWidgetState extends StructureElementWidgetState<StructureCode>
   Widget bodyWidget(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      _fieldDecoration(context, field, note.focused == this),
+      _fieldDecoration(context, _fieldWidget, note.focused == this),
       outputWidget ?? Container(),
     ],
   );
 }
 
-class _TableElementWidgetState extends StructureElementWidgetState<StructureTable> {
+class TableElementWidgetState extends StructureElementWidgetState<StructureTable> {
   @override final String title = 'Table';
 
-  late List<List<TextField>> fields = _createTableWidget();
-  List<List<TextField>> _createTableWidget() => (
-    element.table.indexed.map((row) => (
-        row.$2.indexed.map((cell) => TextField(
+  int row = 0;
+  int col = 0;
+  List<List<String>> get rows => element.table;
+
+  late List<List<TextField>> fields = _createFields();
+  List<List<TextField>> _createFields() => (
+    element.table.indexed.map((r) => (
+        r.$2.indexed.map((cell) => TextField(
             controller: TextEditingController(text: cell.$2),
             focusNode: FocusNode(),
             onChanged: (content) {
-              element.table[row.$1][cell.$1] = content;
+              element.table[r.$1][cell.$1] = content;
               note.markUnsaved();
             },
             maxLines: null,
@@ -164,52 +171,62 @@ class _TableElementWidgetState extends StructureElementWidgetState<StructureTabl
               border: InputBorder.none,
             ),
 
-            onTap: () => note.setFocused(this),
+            onTap: () {
+              note.setFocused(this);
+              row = r.$1;
+              col = cell.$1;
+            },
         )).toList()
     )).toList()
   );
 
+  void afterAction() {
+    fields = _createFields();
+    fields[row][col].focusNode?.requestFocus();
+  }
+
   @override
-  Widget bodyWidget(BuildContext context) => Align(
-    alignment: Alignment.topLeft,
-    child: Container(
-      color: Theme.of(context).colorScheme.surface,
-      child: Hscroll(child: Table(
-          defaultColumnWidth: const IntrinsicColumnWidth(),
-          border: TableBorder.all(),
-          children: fields.map((fields) => TableRow(
-              children: fields.map((field) => TableCell(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(minWidth: 70),
-                    child: field,
-                  ),
-              )).toList(),
-          )).toList(),
-      )),
-    ),
-  );
+  Widget bodyWidget(BuildContext context) {
+    final table = Hscroll(child: Table(
+        defaultColumnWidth: const IntrinsicColumnWidth(),
+        border: TableBorder.all(),
+        children: fields.map((fields) => TableRow(
+            children: fields.map((field) => TableCell(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 70),
+                  child: field,
+                ),
+            )).toList(),
+        )).toList(),
+    ));
+
+    return Align(
+      alignment: Alignment.topLeft,
+      child: _fieldDecoration(context, table, note.focused == this),
+    );
+  }
 }
 
-class _LensElementWidgetState extends StructureElementWidgetState<StructureLens> {
-  @override final String title = 'Lens';
+class LensElementWidgetState extends StructureElementWidgetState<StructureLens> {
+  @override final String title = 'Widget';
 
-  _TextFieldWrapper? rawField; // If raw
-  String? toStateError;
-  int? instanceId;
+  _TextFieldWrapper? _rawField; // If raw
+  String? _toStateError;
+  int? _instanceId;
 
   LensExtension? get lens => getLens(element.ext, element.name);
-  bool get isInteractiveMode => rawField == null;
+  bool get isInteractiveMode => _rawField == null;
 
   @override void initState() { super.initState(); rawMode(); }
   @override void dispose() { super.dispose(); cleanup(); }
 
   void cleanup() {
-    final id = instanceId;
+    final id = _instanceId;
     if (id != null) note.handler.lua.disposeLensInstance(id);
 
-    rawField = null;
-    toStateError = null;
-    instanceId = null;
+    _rawField = null;
+    _toStateError = null;
+    _instanceId = null;
   }
 
   void interactiveMode() {
@@ -217,20 +234,20 @@ class _LensElementWidgetState extends StructureElementWidgetState<StructureLens>
 
     final lens = this.lens;
     if (lens == null) {
-      toStateError = 'Lens ${element.ext}/${element.name} does not exist';
+      _toStateError = 'Lens ${element.ext}/${element.name} does not exist';
       return;
     }
 
     try {
-      instanceId = note.handler.lua.initializeLensInstance(lens, element.text);
+      _instanceId = note.handler.lua.initializeLensInstance(lens, element.text);
     } catch (e) {
-      toStateError = 'Error in $toStateField method: $e';
+      _toStateError = 'Error in $toStateField method: $e';
     }
   }
 
   void rawMode() {
     cleanup();
-    rawField = _TextFieldWrapper(
+    _rawField = _TextFieldWrapper(
       init: element.text,
       onEnter: () => note.setFocused(this),
       onChange: (newText) {
@@ -243,12 +260,12 @@ class _LensElementWidgetState extends StructureElementWidgetState<StructureLens>
 
 
   Future<void> performLuiAction(LuiComponent component, LuiAction action) async {
-    note.handler.lua.pushLuiComponent(instanceId!, component);
+    note.handler.lua.pushLuiComponent(_instanceId!, component);
     await action(note.handler.lua);
 
     // Update the lens element text
     try {
-      element.text = note.handler.lua.generateLensText(lens!, instanceId!);
+      element.text = note.handler.lua.generateLensText(lens!, _instanceId!);
     } catch (e) {
       print('Error generating widget text: $e');
     }
@@ -258,9 +275,9 @@ class _LensElementWidgetState extends StructureElementWidgetState<StructureLens>
 
   @override
   Widget bodyWidget(BuildContext context) {
-    final toStateError = this.toStateError;
-    final instanceId = this.instanceId;
-    final rawField = this.rawField;
+    final toStateError = _toStateError;
+    final instanceId = _instanceId;
+    final rawField = _rawField;
     return (
       rawField != null ? _fieldDecoration(context, rawField, note.focused == this)
       : toStateError != null ? Text(toStateError, style: const TextStyle(color: Colors.red))

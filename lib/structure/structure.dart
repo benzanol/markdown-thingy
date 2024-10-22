@@ -78,6 +78,16 @@ class Structure implements ToJson {
     final parent = search((s) => s.content.contains(elem));
     return parent == null ? null : (parent, follow(parent).content.indexOf(elem));
   }
+
+  // Structure? searchElementParent(StructureElement elem) => searchElement(elem)?.pipe((path) => follow(path.$1));
+  // Structure? searchParent(Structure struct) => searchStruct(struct)
+  // ?.pipe((path) => path.isEmpty ? null : path.sublist(1))
+  // ?.pipe((path) => follow(path));
+  StructureHeading? searchHeading(Structure struct) {
+    final path = searchStruct(struct);
+    if (path == null || path.isEmpty) return null;
+    return follow(path.sublist(0, path.length-1)).headings[path.last];
+  }
 }
 
 

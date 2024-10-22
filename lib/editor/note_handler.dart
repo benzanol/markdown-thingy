@@ -5,6 +5,7 @@ import 'package:material_design_icons_flutter/material_design_icons_flutter.dart
 import 'package:notes/drawer/file_browser.dart';
 import 'package:notes/drawer/git.dart';
 import 'package:notes/drawer/left_drawer.dart';
+import 'package:notes/editor/actions.dart';
 import 'package:notes/editor/extensions.dart';
 import 'package:notes/editor/note_editor.dart';
 import 'package:notes/editor/repo_file_manager.dart';
@@ -37,6 +38,14 @@ class NoteHandler {
   late NoteEditor note;
   late List<String> history;
   int historyIdx = 0;
+
+  (NoteEditor, Object)? focused; // StructureHeading | StructureElement | TextEdittingController | CodeController
+  void setFocused((NoteEditor, Object)? newFocus, {bool noRefresh = false}) {
+    print('Focused: $newFocus');
+    if (newFocus == focused) return;
+    focused = newFocus;
+    if (!noRefresh) refreshWidget();
+  }
 
 
   void refreshWidget() {
@@ -116,6 +125,32 @@ class _NoteHandlerWidgetState extends State<NoteHandlerWidget> {
 
   @override
   Widget build(BuildContext context) {
+    Widget? actionBar;
+    final f = handler.focused;
+    if (f != null) {
+      actionBar = currentActionBar(
+        context: context, note: f.$1, object: f.$2,
+        setFocus: (obj) => handler.setFocused(obj == null ? null : (f.$1, obj)),
+        after: () {
+          handler.refreshWidget();
+          f.$1.markUnsaved();
+        },
+      );
+    }
+
+    final body = NoteEditorWidget(note: handler.note);
+    final bodyWithActions = actionBar == null ? body : Column(
+      children: [
+        Expanded(child: body),
+        // Wrap in a builder so that the action bar gets created AFTER a
+        // focusedElement gets initialized
+        Builder(builder: (context) => Container(
+            color: Theme.of(context).colorScheme.secondary,
+            child: actionBar,
+        )),
+      ],
+    );
+
     return Scaffold(
       appBar: AppBar(
         leading: Builder(builder: (context) => Row(children: leftActions(context))),
@@ -133,7 +168,7 @@ class _NoteHandlerWidgetState extends State<NoteHandlerWidget> {
           },
         ),
       ),
-      body: NoteEditorWidget(note: handler.note),
+      body: bodyWithActions,
     );
   }
 }

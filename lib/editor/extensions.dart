@@ -19,7 +19,6 @@ String? extensionIndexFile(NoteHandler handler, String ext) {
 
 String? isExtensionIndexFile(NoteHandler handler, String path) {
   final segs = path.split('/').where((s) => s.isNotEmpty).toList();
-  print(segs);
   if (segs.length < 3) return null;
   if (segs[0] != extDirectory) return null;
   final indexFile = extensionIndexFile(handler, segs[1]);
