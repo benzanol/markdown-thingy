@@ -31,7 +31,7 @@ class NoteHandler {
   }
 
   final RepoFileManager fs;
-  late final LuaContext lua = LuaContext.handler(this);
+  late final LuaContext lua = LuaContext.init(this);
 
   GithubRepo? git;
 

@@ -4,6 +4,7 @@ import 'package:lua_dardo/lua.dart';
 import 'package:notes/editor/extensions.dart';
 import 'package:notes/editor/note_handler.dart';
 import 'package:notes/editor/repo_file_manager.dart';
+import 'package:notes/lua/functions.dart';
 import 'package:notes/lua/object.dart';
 import 'package:notes/lua/ui.dart';
 
@@ -13,37 +14,33 @@ const String tableCacheVariable = '*table-cache*';
 
 
 class LuaContext {
-  LuaContext.handler(this.handler) : _lua = LuaState.newState();
+  LuaContext.init(this.handler) : _lua = LuaState.newState() { _init(); }
   final LuaState _lua;
   final NoteHandler handler;
 
 
   // Calling arbitrary user code
 
-  static LuaContext? current;
-  static String? currentPwd;
-  static String? currentExtension;
+  String? currentPwd;
+  String? currentExtension;
   void _callUserFunction(int nargs, int nresults, {String? pwd, String? ext}) {
-    final oldCurrent = LuaContext.current;
-    final oldPwd = LuaContext.currentPwd;
-    final oldExtension = LuaContext.currentExtension;
+    final oldPwd = currentPwd;
+    final oldExtension = currentExtension;
 
-    LuaContext.current = this;
-    LuaContext.currentPwd = pwd ?? LuaContext.currentPwd;
-    LuaContext.currentExtension = ext ?? LuaContext.currentExtension;
+    currentPwd = pwd ?? currentPwd;
+    currentExtension = ext ?? currentExtension;
 
     try {
       _lua.call(nargs, nresults);
     } finally {
-      LuaContext.current = oldCurrent;
-      LuaContext.currentPwd = oldPwd;
-      LuaContext.currentExtension = oldExtension;
+      currentPwd = oldPwd;
+      currentExtension = oldExtension;
     }
   }
 
-  LuaObject executeUserCode(String code) {
+  LuaObject executeUserCode(String code, {String? pwd}) {
     _lua.loadString(code);
-    _callUserFunction(0, 1);
+    _callUserFunction(0, 1, pwd: pwd);
     return _parse();
   }
 
@@ -153,9 +150,10 @@ class LuaContext {
   }
 
   // For debugging purposes
-  void printStack() {
+  void printStack() => print(_parseStack());
+  List<LuaObject> _parseStack() {
     final h = _lua.getTop();
-    print(List.generate(h, (idx) => _parse(index: idx - h)));
+    return List.generate(h, (idx) => _parse(index: idx - h));
   }
 
 
@@ -163,7 +161,7 @@ class LuaContext {
 
   String resolvePath(String relative) => concatPaths(currentPwd ?? '/', relative);
 
-  String resolveExistsOrError(String relative, {FileType type = FileType.file, bool create = false}) {
+  String resolveExistsOrErr(String relative, {FileType type = FileType.file, bool create = false}) {
     final path = resolvePath(relative);
     final actualType = handler.fs.exists(path);
 
@@ -273,6 +271,8 @@ class LuaContext {
 
   // Generating lenses
 
+  void defineLens(LensExtension lens) => _setTableEntry(extsVariable, lens.lensFields);
+
   int initializeLensInstance(LensExtension lens, String content) {
     _lua.setTop(0);
 
@@ -316,5 +316,99 @@ class LuaContext {
   void disposeLensInstance(int id) {
     _lua.pushNil();
     _setTableEntry(extsVariable, [id.toString()]);
+  }
+
+
+  // Initialization
+
+  static const requiredModulesVariable = "*required*";
+
+  int require(String packagePath, String module) {
+    final modulePath = module.replaceAll('.', '/');
+
+    _lua.getGlobal(requiredModulesVariable);
+    final requireTableIndex = _lua.getTop();
+
+    for (final pathOption in packagePath.split(';')) {
+      final path = resolvePath(pathOption.replaceAll('?', modulePath));
+      _lua.getField(requireTableIndex, path);
+      if (!_lua.isNil(-1)) return 1;
+      _lua.pop(1);
+
+      if (handler.fs.existsFile(path)) {
+        _lua.loadString(handler.fs.readOrErr(path));
+        _callUserFunction(0, 1, pwd: path);
+        _lua.pushValue(-1);
+        _lua.setField(requireTableIndex, path);
+        return 1;
+      }
+    }
+
+    throw 'Module $module does not exist';
+  }
+
+  void _registerFunctions(String varName) {
+    // Table to hold all of the dart functions
+    _lua.newTable();
+
+    // Add raw functions to the table
+    for (final pushFn in pushFunctions.entries) {
+      _lua.pushDartFunction((_) => pushFn.value(this, _parseStack()));
+      _lua.setField(-2, pushFn.key);
+    }
+
+    // Add returning functions to the table
+    for (final returnFn in returnFunctions.entries) {
+      _lua.pushDartFunction((LuaState _) {
+          _push(returnFn.value(this, _parseStack()));
+          return 1;
+      });
+      _lua.setField(-2, returnFn.key);
+    }
+
+    // Store the table in the specified name
+    _lua.setGlobal(varName);
+  }
+
+  void _stripLibFunctions(String lib, {required List<String> keep}) {
+    _lua.getGlobal(lib);
+    if (!_lua.isTable(-1)) {
+      _lua.pop(1);
+      return;
+    }
+
+    _lua.pushNil();
+    while (_lua.next(-2)) {
+      _lua.pop(1); // Pop the value
+      if (!keep.contains(_lua.toStr(-1))) {
+        _lua.pushValue(-1);
+        _lua.pushNil();
+        // Stack is [lib, key, key, nil]
+        _lua.setTable(-4);
+      }
+    }
+    _lua.pop(1);
+  }
+
+  void _init() {
+    // Load lua libraries
+    _lua.openLibs();
+
+    // Remove access to the filesystem
+    _lua.doString('loadfile = nil');
+    _stripLibFunctions('os', keep: ['clock', 'difftime', 'date', 'time']);
+    // The io library doesn't get created by luadardo
+    _lua.doString('io = {stdout=print}');
+
+    // Register dart functions
+    const funcVar = 'App';
+    _registerFunctions(funcVar);
+    _lua.doString('require = $funcVar.require');
+
+    // Initialize global tables
+    for (final variable in [extsVariable, instancesVariable, requiredModulesVariable]) {
+      _lua.newTable();
+      _lua.setGlobal(variable);
+    }
   }
 }

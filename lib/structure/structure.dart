@@ -27,7 +27,7 @@ class Structure implements ToJson {
 
   Structure({required this.props, required this.content, required this.headings});
   Structure.empty() : props = {}, content = [], headings = [];
-  static Structure parseFromJson(LuaObject obj) => _parseStructureFromLua(obj);
+  static Structure parseFromLua(LuaObject obj) => _parseStructureFromLua(obj);
 
 
   @override

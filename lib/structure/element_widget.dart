@@ -4,6 +4,7 @@ import 'package:flutter_highlight/themes/idea.dart';
 import 'package:highlight/languages/all.dart';
 import 'package:notes/editor/extensions.dart';
 import 'package:notes/editor/note_editor.dart';
+import 'package:notes/editor/repo_file_manager.dart';
 import 'package:notes/lua/ui.dart';
 import 'package:notes/structure/structure.dart';
 import 'package:notes/structure/structure_widget.dart';
@@ -130,7 +131,7 @@ class CodeElementWidgetState extends StructureElementWidgetState<StructureCode> 
   @override
   Widget rightWidget(BuildContext context) => IconBtn(icon: Icons.play_arrow, onPressed: () {
       try {
-        final output = note.handler.lua.executeUserCode(element.content);
+        final output = note.handler.lua.executeUserCode(element.content, pwd: fileParent(note.file));
         setState(() => outputWidget = Text(output.toString()));
       } catch (e) {
         setState(() => outputWidget = Text(e.toString(), style: const TextStyle(color: Colors.red)));
