@@ -7,8 +7,8 @@ import 'package:notes/utils/fold_button.dart';
 
 const double hMargin = 8;
 const double vPad = 8;
-const Color borderColor = Colors.grey;
 final BoxBorder focusedBorder = Border.all(color: Colors.blueGrey, width: 2);
+final BoxBorder fieldBorder = Border.all(color: Colors.grey, width: 1);
 
 
 class StructureWidget extends StatelessWidget {
@@ -51,10 +51,9 @@ class StructureWidget extends StatelessWidget {
               titleWidget,
               Container(
                 decoration: const BoxDecoration(border: Border(
-                    left: BorderSide(width: 1, color: borderColor),
+                    left: BorderSide(width: 1, color: Colors.grey),
                 )),
-                padding: const EdgeInsets.only(left: 10),
-                margin: const EdgeInsets.only(left: 2),
+                padding: const EdgeInsets.only(left: 12),
                 child: Visibility(
                   maintainState: true,
                   visible: !isFolded,

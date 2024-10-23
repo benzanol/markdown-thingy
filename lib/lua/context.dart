@@ -149,8 +149,6 @@ class LuaContext {
     }
   }
 
-  // For debugging purposes
-  void printStack() => print(_parseStack());
   List<LuaObject> _parseStack() {
     final h = _lua.getTop();
     return List.generate(h, (idx) => _parse(index: idx - h));
@@ -360,7 +358,7 @@ class LuaContext {
     // Add returning functions to the table
     for (final returnFn in returnFunctions.entries) {
       _lua.pushDartFunction((LuaState _) {
-          _push(returnFn.value(this, _parseStack()));
+          _push(LuaObject.fromJson(returnFn.value(this, _parseStack())));
           return 1;
       });
       _lua.setField(-2, returnFn.key);

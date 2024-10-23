@@ -218,7 +218,7 @@ class LensElementWidgetState extends StructureElementWidgetState<StructureLens> 
   LensExtension? get lens => getLens(element.ext, element.name);
   bool get isInteractiveMode => _rawField == null;
 
-  @override void initState() { super.initState(); rawMode(); }
+  @override void initState() { super.initState(); interactiveMode(); }
   @override void dispose() { super.dispose(); cleanup(); }
 
   void cleanup() {
@@ -281,9 +281,18 @@ class LensElementWidgetState extends StructureElementWidgetState<StructureLens> 
     final rawField = _rawField;
     return (
       rawField != null ? _fieldDecoration(context, rawField, note.focused == this)
-      : toStateError != null ? Text(toStateError, style: const TextStyle(color: Colors.red))
-      : instanceId != null ? note.handler.lua.generateLensUi(lens!, instanceId).widget(performLuiAction)
-      : const Text('Internal Error: field, error, and instance are all null')
+      : Container(
+        padding: const EdgeInsets.all(vPad),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          border: fieldBorder,
+        ),
+        child: (
+          toStateError != null ? Text(toStateError, style: const TextStyle(color: Colors.red))
+          : instanceId != null ? note.handler.lua.generateLensUi(lens!, instanceId).widget(performLuiAction)
+          : throw 'Internal Error: field, error, and instance are all null'
+        ),
+      )
     );
   }
 
@@ -302,7 +311,7 @@ class LensElementWidgetState extends StructureElementWidgetState<StructureLens> 
 
 Widget _fieldDecoration(BuildContext context, Widget child, bool focused) => Container(
   decoration: BoxDecoration(
-    border: focused ? focusedBorder : Border.all(color: borderColor),
+    border: focused ? focusedBorder : fieldBorder,
     color: Theme.of(context).colorScheme.surface,
   ),
   child: child,

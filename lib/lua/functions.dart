@@ -35,8 +35,6 @@ final returnFunctions = <String, dynamic Function(LuaContext, List<LuaObject> ar
     return lua.resolveExistsOrErr(ensureLuaString(args[0], 'path'), type: FileType.directory);
   },
 
-  'print_stack': (lua, args) => lua.printStack(),
-
   'parse_markdown': (lua, args) {
     ensureArgCount(args.length, 1);
     final content = ensureLuaString(args[0], 'string');
