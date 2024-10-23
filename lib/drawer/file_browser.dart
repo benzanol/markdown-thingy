@@ -18,22 +18,45 @@ typedef _PopupButton = PopupMenuItem<Function(BuildContext context)>;
 
 
 class FileBrowser extends StatefulWidget {
-  const FileBrowser({super.key, required this.handler, required this.dir, required this.openFile});
+  const FileBrowser({
+      super.key,
+      required this.handler,
+      required this.dir,
+      required this.openDirs,
+      required this.openFn,
+  });
   final NoteHandler handler;
   final String dir;
-  final Function(String file) openFile;
+  final Set<String> openDirs;
+  final Function(BuildContext context, String file) openFn;
 
   @override
   State<FileBrowser> createState() => _FileBrowserState();
 }
 
 class _FileBrowserState extends State<FileBrowser> {
-  Map<String, StreamSubscription<FileSystemEvent>> openDirs = {};
-  void setDirOpen(String dir) => openDirs[dir] = widget.handler.fs.dirWatcher(dir, () => setState(() {}));
-  void setDirClosed(String dir) => openDirs.remove(dir)?.cancel();
+  Map<String, StreamSubscription<FileSystemEvent>> watchers = {};
+  void setDirClosed(String dir) {
+    widget.openDirs.remove(dir);
+    watchers.remove(dir)?.cancel();
+  }
+  void setDirOpen(String dir) {
+    setDirClosed(dir);
+    widget.openDirs.add(dir);
+    watchers[dir] = widget.handler.fs.dirWatcher(dir, () => setState(() {}));
+  }
 
-  @override void initState() { super.initState(); setDirOpen(widget.dir); }
-  @override void dispose() { super.dispose(); openDirs.keys.toList().forEach(setDirClosed); }
+  @override void initState() {
+    super.initState();
+    widget.openDirs.toList().forEach(setDirOpen);
+    setDirOpen('');
+  }
+  @override void dispose() {
+    super.dispose();
+    for (final listener in watchers.values) {
+      listener.cancel();
+    }
+  }
 
 
   List<_PopupButton> creationPopupButtons(String pwd) => [
@@ -83,12 +106,12 @@ class _FileBrowserState extends State<FileBrowser> {
           PopupMenuItem(value: (context) => promptDeleteFile(context, widget.handler, path), child: const Text('Delete')),
       ]),
       onTap: () => setState(() {
-          if (ft.isDir && openDirs.containsKey(path)) {
+          if (ft.isDir && watchers.containsKey(path)) {
             setDirClosed(path);
           } else if (ft.isDir) {
             setDirOpen(path);
           } else if (ft.isFile) {
-            widget.openFile(path);
+            widget.openFn(context, path);
           }
       }),
 
@@ -121,7 +144,7 @@ class _FileBrowserState extends State<FileBrowser> {
     return Column(
       children: children.expand((child) {
           final childPath = concatPaths(path, child.$1);
-          final isOpen = openDirs.containsKey(childPath);
+          final isOpen = watchers.containsKey(childPath);
           return [
             fileNameWidget(childPath, child.$2, depth, child == children.last && !isOpen),
             isOpen ? directoryContentsWidget(childPath, depth+1) : Container(),

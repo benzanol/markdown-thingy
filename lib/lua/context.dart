@@ -47,7 +47,7 @@ class LuaContext {
   void executeExtensionCode(String ext, String code) {
     try {
       _lua.loadString(code);
-      _callUserFunction(0, 1);
+      _callUserFunction(0, 1, ext: ext, pwd: concatPaths(extDirectory, ext));
       _setTableEntry(extsVariable, [ext, extsReturnField]);
     } catch (err) {
       print('Error loading $ext: $err');

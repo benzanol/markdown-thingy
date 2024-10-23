@@ -39,9 +39,11 @@ class NoteHandler {
   late List<String> history;
   int historyIdx = 0;
 
+  final Set<String> openDirs = {''};
+
   (NoteEditor, Object)? focused; // StructureHeading | StructureElement | TextEdittingController | CodeController
   void setFocused((NoteEditor, Object)? newFocus, {bool noRefresh = false}) {
-    print('Focused: $newFocus');
+    // print('Focused: $newFocus');
     if (newFocus == focused) return;
     focused = newFocus;
     if (!noRefresh) refreshWidget();
@@ -54,10 +56,17 @@ class NoteHandler {
   }
 
   void historyMove(int n) {
+    final oldIdx = historyIdx;
     historyIdx = (historyIdx + n).clamp(0, history.length-1);
+    if (oldIdx == historyIdx) return;
+
+    note = NoteEditor(handler: this, file: history[historyIdx]);
+    refreshWidget();
   }
 
   void openFile(String newFile) {
+    note.save();
+
     // Cut off redo list
     history.removeRange(historyIdx+1, history.length);
     // Remove duplicates
@@ -158,16 +167,15 @@ class _NoteHandlerWidgetState extends State<NoteHandlerWidget> {
         title: FittedBox(child: Text(handler.note.file)),
         actions: rightActions(),
       ),
-      drawer: LeftDrawer(child:
-        FileBrowser(
+      drawer: LeftDrawer(child: FileBrowser(
           handler: handler,
           dir: '',
-          openFile: (file) {
+          openDirs: handler.openDirs,
+          openFn: (context, file) {
             handler.openFile(file);
             Navigator.of(context).pop();
           },
-        ),
-      ),
+      )),
       body: bodyWithActions,
     );
   }

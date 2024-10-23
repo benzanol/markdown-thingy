@@ -29,7 +29,8 @@ class EditorActionBar<Obj> {
   final List<EditorAction<Obj>> actions;
   final Function(EditorActionProps<Obj> ps)? maintainFocus;
 
-  static const double size = 40;
+  static const double size = 32;
+  static const double pad = 8;
   Widget widget({
       required BuildContext context,
       required NoteEditor note,
@@ -54,10 +55,8 @@ class EditorActionBar<Obj> {
         child: WithColor(
           color: Theme.of(context).colorScheme.surface,
           child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
-            width: size,
-            height: size,
-            child: Icon(action.$1),
+            padding: const EdgeInsets.all(pad),
+            child: Icon(action.$1, size: size),
           ),
         ),
     )).toList();

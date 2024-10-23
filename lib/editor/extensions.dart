@@ -30,7 +30,7 @@ String? isExtensionIndexFile(NoteHandler handler, String path) {
 Future<void> initializeHandlerExtensions(NoteHandler handler) async {
   await Future.delayed(const Duration(milliseconds: 1));
 
-  if (handler.fs.existsDir(extDirectory)) return;
+  if (!handler.fs.existsDir(extDirectory)) return;
   for (final ext in handler.fs.listDirsOrErr(extDirectory)) {
     final indexFile = extensionIndexFile(handler, ext);
     if (indexFile == null) return;
