@@ -174,7 +174,13 @@ class LuiLabel extends LuiComponent {
           ),
           alignment: doubField('width') == null ? null : Alignment.center,
           child: (
-            theme == 'button' ? Text(content, style: style.copyWith(color: buttonFgColor))
+            theme == 'button'
+            ? Text(
+              content,
+              style: style.copyWith(color: buttonFgColor),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            )
             : Icon(MdiIcons.fromString(content) ?? Icons.question_mark, color: buttonFgColor)
           ),
         ),

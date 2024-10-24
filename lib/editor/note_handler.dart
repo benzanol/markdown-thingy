@@ -117,7 +117,7 @@ class _NoteHandlerWidgetState extends State<NoteHandlerWidget> {
       onPressed: () => handler.note.save(),
     );
 
-    final ext = isExtensionIndexFile(handler, handler.note.file);
+    final ext = extensionOfFile(handler, handler.note.file);
     final refreshBtn = ext == null ? null : IconBtn(
       padding: buttonPadding,
       icon: Icons.refresh,
@@ -127,8 +127,7 @@ class _NoteHandlerWidgetState extends State<NoteHandlerWidget> {
     return [
       saveBtn ?? Container(),
       refreshBtn ?? Container(),
-      const Padding(padding: EdgeInsets.all(3), child: Text('Raw')),
-      Switch(value: handler.note.isRaw, onChanged: handler.note.setRaw),
+      Switch(value: !handler.note.isRaw, onChanged: (v) => handler.note.setRaw(!v)),
     ];
   }
 

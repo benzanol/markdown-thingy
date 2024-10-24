@@ -299,7 +299,7 @@ class LensElementWidgetState extends StructureElementWidgetState<StructureLens> 
   @override
   Widget rightWidget(BuildContext context) => Row(
     children: [
-      const Text('Interactive'),
+      // const Text('Interactive'),
       Switch(value: isInteractiveMode, onChanged: (val) {
           if (val == isInteractiveMode) return;
           setState(() => val ? interactiveMode() : rawMode());

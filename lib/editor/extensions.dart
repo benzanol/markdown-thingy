@@ -1,5 +1,4 @@
 import 'package:notes/editor/note_handler.dart';
-import 'package:notes/editor/repo_file_manager.dart';
 import 'package:notes/structure/structure_parser.dart';
 
 
@@ -17,13 +16,11 @@ String? extensionIndexFile(NoteHandler handler, String ext) {
   return extIndexFileNames.where((name) => files.contains(name)).firstOrNull;
 }
 
-String? isExtensionIndexFile(NoteHandler handler, String path) {
+String? extensionOfFile(NoteHandler handler, String path) {
   final segs = path.split('/').where((s) => s.isNotEmpty).toList();
-  if (segs.length < 3) return null;
+  if (segs.length < 2) return null;
   if (segs[0] != extDirectory) return null;
-  final indexFile = extensionIndexFile(handler, segs[1]);
-  if (indexFile == null || segs[2] != fileName(indexFile)) return null;
-  return segs[1];
+  return extensionIndexFile(handler, segs[1]);
 }
 
 
