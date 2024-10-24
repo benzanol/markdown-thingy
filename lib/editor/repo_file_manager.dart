@@ -106,6 +106,14 @@ class RepoFileManager {
     .toList();
   }
 
+  List<String> listAllFiles({bool hidden = false}) => (
+    _root.listSync(recursive: true)
+    .whereType<File>()
+    .map((f) => f.path.replaceFirst(_root.path, ''))
+    .where((path) => hidden || !path.split('/').any((seg) => seg.startsWith('.')))
+    .toList()
+  );
+
 
   StreamSubscription<FileSystemEvent> dirWatcher(String dir, Function() onUpdate) {
     ensureDir(dir);

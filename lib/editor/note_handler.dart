@@ -11,6 +11,7 @@ import 'package:notes/editor/note_editor.dart';
 import 'package:notes/editor/repo_file_manager.dart';
 import 'package:notes/lua/context.dart';
 import 'package:notes/utils/icon_btn.dart';
+import 'package:notes/utils/search.dart';
 
 
 const List<String> initFiles = ['index.org', 'index.md'];
@@ -67,10 +68,14 @@ class NoteHandler {
   void openFile(String newFile) {
     note.save();
 
-    // Cut off redo list
-    history.removeRange(historyIdx+1, history.length);
+    // Reverse redos
+    final ahead = history.sublist(historyIdx, history.length);
+    history.removeRange(historyIdx, history.length);
+    history.addAll(ahead.reversed);
+
     // Remove duplicates
     history.removeWhere((p) => p == newFile);
+
     history.add(newFile);
     historyIdx = history.length - 1;
 
@@ -93,19 +98,16 @@ class _NoteHandlerWidgetState extends State<NoteHandlerWidget> {
 
   void refresh() => setState(() {});
 
+  static const double iconButtonPadding = 5;
   List<IconBtn> leftActions(BuildContext context) => [
     IconBtn(
-      icon: MdiIcons.menu, padding: 5,
+      icon: MdiIcons.menu, padding: iconButtonPadding,
       onPressed: () => Scaffold.of(context).openDrawer(),
     ),
     IconBtn(
-      icon: Icons.arrow_back, padding: 5,
-      onPressed: handler.historyIdx == 0 ? null : () => handler.historyMove(-1),
-    ),
-    IconBtn(
-      icon: Icons.arrow_forward, padding: 5,
-      onPressed: handler.historyIdx == handler.history.length-1 ? null : () => handler.historyMove(1),
-    ),
+      icon: Icons.search, padding: iconButtonPadding,
+      onPressed: () => promptRecentFiles(context),
+    )
   ];
 
   List<Widget> rightActions() {
@@ -130,6 +132,15 @@ class _NoteHandlerWidgetState extends State<NoteHandlerWidget> {
       Switch(value: !handler.note.isRaw, onChanged: (v) => handler.note.setRaw(!v)),
     ];
   }
+
+  void promptRecentFiles(BuildContext context) => showDialog(
+    context: context,
+    builder: (context) => SearchMenu(
+      onSelect: (file) => handler.openFile(file),
+      options: handler.fs.listAllFiles().map((f) => f.substring(1, f.length)).toList(),
+      initial: handler.history.reversed.toList(),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -162,7 +173,7 @@ class _NoteHandlerWidgetState extends State<NoteHandlerWidget> {
     return Scaffold(
       appBar: AppBar(
         leading: Builder(builder: (context) => Row(children: leftActions(context))),
-        leadingWidth: 110,
+        leadingWidth: 70,
         title: FittedBox(child: Text(handler.note.file)),
         actions: rightActions(),
       ),
