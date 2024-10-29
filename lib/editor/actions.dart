@@ -106,6 +106,42 @@ void _surroundSelection(TextEditingController controller, String startTag, Strin
   controller.selection = TextSelection.collapsed(offset: end + startTag.length);
 }
 
+void _indentSelection(TextEditingController controller, int amount) {
+  bool between(int n, int left, int right) => left <= n && n <= right;
+
+  final selection = controller.selection;
+  final start = selection.start;
+  final end = selection.end;
+  var (newStart, newEnd) = (start, end);
+
+  final lines = controller.text.split('\n');
+  int lineStart = 0;
+  for (final (i, line) in lines.indexed) {
+    final lineEnd = lineStart + line.length;
+    if (between(lineStart, start, end) || between(start, lineStart, lineEnd)) {
+      final (newLine, forward) = (
+        (amount >= 0) ? ('${" " * amount}$line', amount)
+        : line.startsWith(' ' * -amount) ? (line.substring(-amount), amount)
+        : (line, 0)
+      );
+      lines[i] = newLine;
+
+      if (between(start, lineStart, lineEnd)) {
+        newStart = max(lineStart, start + forward);
+      }
+      if (between(end, lineStart, lineEnd)) {
+        final col = end - lineStart;
+        newEnd += max(-col, forward);
+      } else {
+        newEnd += forward;
+      }
+    }
+    lineStart = lineEnd + 1;
+  }
+  controller.text = lines.join('\n');
+  controller.selection = TextSelection(baseOffset: newStart, extentOffset: newEnd);
+}
+
 final textActionsBar = EditorActionBar<TextElementWidgetState>(
   maintainFocus: (ps) => ps.obj.field.focusNode.requestFocus(),
   actions: [
@@ -117,12 +153,15 @@ final textActionsBar = EditorActionBar<TextElementWidgetState>(
 );
 
 final codeActionsBar = EditorActionBar<CodeElementWidgetState>(
+  maintainFocus: (ps) => ps.obj.focusNode.requestFocus(),
   actions: [
     (Icons.exit_to_app, (ps) => ps.newFocus = ps.obj.element),
     (Icons.circle_outlined, (ps) => _surroundSelection(ps.obj.controller, '(', ')')),
     (Icons.data_array, (ps) => _surroundSelection(ps.obj.controller, '[', ']')),
     (Icons.data_object, (ps) => _surroundSelection(ps.obj.controller, '{', '}')),
     (Icons.code, (ps) => _surroundSelection(ps.obj.controller, '<', '>')),
+    (Icons.arrow_back, (ps) => _indentSelection(ps.obj.controller, -2)),
+    (Icons.arrow_forward, (ps) => _indentSelection(ps.obj.controller, 2)),
   ],
 );
 
