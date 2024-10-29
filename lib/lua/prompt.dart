@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'package:notes/lua/ensure.dart';
 import 'package:notes/lua/object.dart';
 import 'package:notes/lua/ui.dart';
@@ -97,12 +98,53 @@ class LuaPromptSelect extends LuaPromptItem {
 class LuaPromptTime extends LuaPromptItem {
   LuaPromptTime(super.table);
 
-  @override LuaObject get object => LuaNil();
+  DateTime dateTime = DateTime.now();
+  @override LuaObject get object => LuaNumber(dateTime.millisecondsSinceEpoch*1000);
+
+  String formattedTime(DateTime t) => (
+    "${t.hour.toString().padLeft(2, '0')}:"
+    "${t.minute.toString().padLeft(2, '0')}"
+    "  "
+    "${t.day.toString().padLeft(2, '0')}/"
+    "${t.month.toString().padLeft(2, '0')}/"
+    "${t.year}"
+  );
 
   @override
-  Widget inputWidget(BuildContext context) => TimePickerDialog(
-    initialTime: TimeOfDay.now(),
-    initialEntryMode: TimePickerEntryMode.inputOnly,
+  Widget inputWidget(BuildContext context) => StatefulBuilder(
+    builder: (context, setState) => ElevatedButton(
+      onPressed: () async {
+        final day = await showDatePicker(
+          context: context,
+          firstDate: DateTime.fromMillisecondsSinceEpoch(0),
+          lastDate: DateTime.fromMillisecondsSinceEpoch(DateTime.now().millisecondsSinceEpoch*2),
+        );
+        if (day == null) return;
+
+        final time = await showTimePicker(
+          // ignore: use_build_context_synchronously
+          context: context,
+          initialTime: TimeOfDay.fromDateTime(dateTime),
+        );
+        if (time == null) return;
+
+        setState(() => dateTime = day.add(Duration(hours: time.hour, minutes: time.minute)));
+      },
+      style: ElevatedButton.styleFrom(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(luaUiRadius)),
+        padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 10),
+        // backgroundColor: Theme.of(context).colorScheme.surface,
+        side: BorderSide(width: 1, color: Theme.of(context).colorScheme.primary),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(MdiIcons.clock),
+          const SizedBox(width: 10),
+          Text(formattedTime(dateTime)),
+        ],
+      ),
+    ),
   );
 }
 
@@ -117,7 +159,7 @@ class LuaPromptCallback {
     onPressed: onPress,
     style: ElevatedButton.styleFrom(
       backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(luaUiRadius)),
       padding: const EdgeInsets.all(17)
     ),
     child: Text(label, style: const TextStyle(fontSize: 17)),
