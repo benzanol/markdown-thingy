@@ -172,9 +172,12 @@ class _NoteHandlerWidgetState extends State<NoteHandlerWidget> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: Builder(builder: (context) => Row(children: leftActions(context))),
-        leadingWidth: 70,
-        title: FittedBox(child: Text(handler.note.file)),
+        // leading: Builder(builder: (context) => Row(children: leftActions(context))),
+        // leadingWidth: 70,
+        title: FittedBox(child: GestureDetector(
+            onTap: () => promptRecentFiles(context),
+            child: Text(handler.note.file),
+        )),
         actions: rightActions(),
       ),
       drawer: LeftDrawer(child: FileBrowser(
