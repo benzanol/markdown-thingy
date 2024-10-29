@@ -102,6 +102,7 @@ class LuaPromptTime extends LuaPromptItem {
   @override
   Widget inputWidget(BuildContext context) => TimePickerDialog(
     initialTime: TimeOfDay.now(),
+    initialEntryMode: TimePickerEntryMode.inputOnly,
   );
 }
 

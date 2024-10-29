@@ -286,7 +286,7 @@ class LuaContext {
       _push(arg);
       _callUserFunction(1, 0, context: context);
     } catch (e) {
-      print('Error during lua callback: $e');
+      print('Error during prompt callback: $e');
     }
   }
 
