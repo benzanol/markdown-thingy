@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:flutter/material.dart';
 import 'package:lua_dardo/lua.dart';
 import 'package:notes/editor/extensions.dart';
 import 'package:notes/editor/note_handler.dart';
@@ -23,24 +24,28 @@ class LuaContext {
 
   String? currentPwd;
   String? currentExtension;
-  void _callUserFunction(int nargs, int nresults, {String? pwd, String? ext}) {
+  BuildContext? currentContext;
+  void _callUserFunction(int nargs, int nresults, {String? pwd, String? ext, BuildContext? context}) {
     final oldPwd = currentPwd;
     final oldExtension = currentExtension;
+    final oldContext = currentContext;
 
     currentPwd = pwd ?? currentPwd;
     currentExtension = ext ?? currentExtension;
+    currentContext = context ?? currentContext;
 
     try {
       _lua.call(nargs, nresults);
     } finally {
       currentPwd = oldPwd;
       currentExtension = oldExtension;
+      currentContext = oldContext;
     }
   }
 
-  LuaObject executeUserCode(String code, {String? pwd}) {
+  LuaObject executeUserCode(String code, {String? pwd, BuildContext? context}) {
     _lua.loadString(code);
-    _callUserFunction(0, 1, pwd: pwd);
+    _callUserFunction(0, 1, pwd: pwd, context: context);
     return _parse();
   }
 
@@ -251,10 +256,10 @@ class LuaContext {
     }
   }
 
-  void performPressAction(Map<String, dynamic> actionArgs) {
+  void performPressAction(Map<String, dynamic> actionArgs, BuildContext context) {
     _lua.getField(-1, 'press');
     _push(LuaObject.fromJson(actionArgs));
-    _callUserFunction(1, 0);
+    _callUserFunction(1, 0, context: context);
   }
 
   void performChangeAction(String content) {
@@ -264,6 +269,21 @@ class LuaContext {
       _lua.pushString(content);
       _callUserFunction(1, 0);
     }
+  }
+
+  void storePromptCallback(String global) => _lua.setGlobal(global);
+  void deletePromptCallback(String global) { _lua.pushNil(); _lua.setGlobal(global); }
+  void performPromptCallback(BuildContext context, LuaTable arg, int index, String global) {
+    _lua.getGlobal(global);
+    deletePromptCallback(global);
+
+    _lua.getField(-1, 'callbacks');
+    _lua.pushInteger(index+1);
+    _lua.getTable(-2);
+
+    if (_lua.isTable(-1)) _lua.getField(-1, 'callback');
+    _push(arg);
+    _callUserFunction(1, 0, context: context);
   }
 
 
@@ -319,7 +339,7 @@ class LuaContext {
 
   // Initialization
 
-  static const requiredModulesVariable = "*required*";
+  static const requiredModulesVariable = '*required*';
 
   int require(String packagePath, String module) {
     final modulePath = module.replaceAll('.', '/');

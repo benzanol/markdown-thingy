@@ -131,7 +131,11 @@ class CodeElementWidgetState extends StructureElementWidgetState<StructureCode> 
   @override
   Widget rightWidget(BuildContext context) => IconBtn(icon: Icons.play_arrow, onPressed: () {
       try {
-        final output = note.handler.lua.executeUserCode(element.content, pwd: fileParent(note.file));
+        final output = note.handler.lua.executeUserCode(
+          element.content,
+          pwd: fileParent(note.file),
+          context: context,
+        );
         setState(() => outputWidget = Text(output.toString()));
       } catch (e) {
         setState(() => outputWidget = Text(e.toString(), style: const TextStyle(color: Colors.red)));
@@ -289,7 +293,9 @@ class LensElementWidgetState extends StructureElementWidgetState<StructureLens> 
         ),
         child: (
           toStateError != null ? Text(toStateError, style: const TextStyle(color: Colors.red))
-          : instanceId != null ? note.handler.lua.generateLensUi(lens!, instanceId).widget(performLuiAction)
+          : instanceId != null ? (
+            note.handler.lua.generateLensUi(lens!, instanceId).widget(performLuiAction)
+          )
           : throw 'Internal Error: field, error, and instance are all null'
         ),
       )

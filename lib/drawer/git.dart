@@ -7,9 +7,9 @@ import 'package:notes/utils/future.dart';
 import 'package:notes/utils/prompts.dart';
 
 const _secureStorage = FlutterSecureStorage();
-const _githubUsernameField = "github_username";
-const _githubRepoField = "github_repo";
-const _githubTokenField = "github_token";
+const _githubUsernameField = 'github_username';
+const _githubRepoField = 'github_repo';
+const _githubTokenField = 'github_token';
 
 
 class GithubRepo {

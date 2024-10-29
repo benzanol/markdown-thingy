@@ -1,9 +1,13 @@
+import 'dart:math';
+
+import 'package:flutter/material.dart';
 import 'package:lua_dardo/lua.dart';
 import 'package:notes/editor/extensions.dart';
 import 'package:notes/editor/repo_file_manager.dart';
 import 'package:notes/lua/context.dart';
 import 'package:notes/lua/ensure.dart';
 import 'package:notes/lua/object.dart';
+import 'package:notes/lua/prompt.dart';
 import 'package:notes/structure/structure.dart';
 import 'package:notes/structure/structure_parser.dart';
 
@@ -26,6 +30,35 @@ final pushFunctions = <String, int Function(LuaContext lua, List<LuaObject> args
 };
 
 final returnFunctions = <String, dynamic Function(LuaContext, List<LuaObject> args)>{
+  'prompt': (lua, args) {
+    final context = lua.currentContext;
+    if (context == null) throw 'Can only prompt in response to a user interaction';
+
+    ensureArgCount(args.length, 1);
+    final table = ensureLuaTable(args[0], 'prompt');
+    final title = ensureLuaString(table['title'] ?? LuaNil(), 'prompt.title');
+    final cbs = ensureLuaTable(table['callbacks'] ?? LuaNil(), 'prompt.callbacks');
+
+    final global = '*${Random().nextInt(1000000)}*';
+    lua.storePromptCallback(global);
+
+    // Create the popup outside of the builder, because the popup throws errors
+    // liberally, which we want to propogate through lua, not the widget tree
+    final popup = LuaPrompt(
+      title: title,
+      options: table.listValues.map((obj) => ensureLuaTable(obj, 'option')).toList(),
+      cbs: cbs.listValues.map((obj) => ensureLuaTable(obj, 'callback')).toList(),
+      after: (context, result, index) {
+        Navigator.of(context).pop(true);
+        lua.performPromptCallback(context, result, index, global);
+      },
+    );
+
+    showDialog<bool>(context: context, builder: (context) => popup).then((success) {
+      if (success != true) lua.deletePromptCallback(global);
+    });
+  },
+
   'resolve_file': (lua, args) {
     ensureArgCount(args.length, 1);
     return lua.resolveExistsOrErr(ensureLuaString(args[0], 'path'));

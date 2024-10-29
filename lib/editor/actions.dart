@@ -132,10 +132,10 @@ final tableActionsBar = EditorActionBar<TableElementWidgetState>(
     (Icons.exit_to_app, (ps) => ps.newFocus = ps.obj.element),
 
     (MdiIcons.tableRowPlusBefore, (ps) {
-        ps.obj.rows.insert(ps.obj.row, List.generate(ps.obj.rows[0].length, (_) => ""));
+        ps.obj.rows.insert(ps.obj.row, List.generate(ps.obj.rows[0].length, (_) => ''));
     }),
     (MdiIcons.tableRowPlusAfter, (ps) {
-        ps.obj.rows.insert(ps.obj.row + 1, List.generate(ps.obj.rows[0].length, (_) => ""));
+        ps.obj.rows.insert(ps.obj.row + 1, List.generate(ps.obj.rows[0].length, (_) => ''));
         ps.obj.row++;
     }),
     (MdiIcons.tableRowRemove, (ps) {
@@ -146,12 +146,12 @@ final tableActionsBar = EditorActionBar<TableElementWidgetState>(
 
     (MdiIcons.tableColumnPlusBefore, (ps) {
         for (final row in ps.obj.rows) {
-          row.insert(ps.obj.col, "");
+          row.insert(ps.obj.col, '');
         }
     }),
     (MdiIcons.tableColumnPlusAfter, (ps) {
         for (final row in ps.obj.rows) {
-          row.insert(ps.obj.col+1, "");
+          row.insert(ps.obj.col+1, '');
         }
         ps.obj.col++;
     }),

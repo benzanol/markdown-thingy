@@ -128,7 +128,7 @@ abstract class LuiComponent {
             'width': size.width,
             'height': size.height,
           };
-          performAction(this, (lua) => lua.performPressAction(args));
+          performAction(this, (lua) => lua.performPressAction(args, context));
         },
         child: container,
       ),
