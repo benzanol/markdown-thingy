@@ -99,15 +99,17 @@ class LuaPromptTime extends LuaPromptItem {
   LuaPromptTime(super.table);
 
   DateTime dateTime = DateTime.now();
-  @override LuaObject get object => LuaNumber(dateTime.millisecondsSinceEpoch*1000);
+  @override LuaObject get object => LuaString(timeStamp());
 
-  String formattedTime(DateTime t) => (
-    "${t.hour.toString().padLeft(2, '0')}:"
-    "${t.minute.toString().padLeft(2, '0')}"
-    "  "
-    "${t.day.toString().padLeft(2, '0')}/"
-    "${t.month.toString().padLeft(2, '0')}/"
-    "${t.year}"
+  static const List<String> daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  String timeStamp() => (
+    "<${dateTime.year}"
+    "-${dateTime.month.toString().padLeft(2, '0')}"
+    "-${dateTime.day.toString().padLeft(2, '0')}"
+    " ${daysOfWeek[dateTime.weekday - 1]}"
+    " ${dateTime.hour.toString().padLeft(2, '0')}"
+    ":${dateTime.minute.toString().padLeft(2, '0')}"
+    ">"
   );
 
   @override
@@ -141,7 +143,7 @@ class LuaPromptTime extends LuaPromptItem {
         children: [
           Icon(MdiIcons.clock),
           const SizedBox(width: 10),
-          Text(formattedTime(dateTime)),
+          Text(timeStamp()),
         ],
       ),
     ),
