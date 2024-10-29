@@ -274,16 +274,20 @@ class LuaContext {
   void storePromptCallback(String global) => _lua.setGlobal(global);
   void deletePromptCallback(String global) { _lua.pushNil(); _lua.setGlobal(global); }
   void performPromptCallback(BuildContext context, LuaTable arg, int index, String global) {
-    _lua.getGlobal(global);
-    deletePromptCallback(global);
+    try {
+      _lua.getGlobal(global);
+      deletePromptCallback(global);
 
-    _lua.getField(-1, 'callbacks');
-    _lua.pushInteger(index+1);
-    _lua.getTable(-2);
+      _lua.getField(-1, 'callbacks');
+      _lua.pushInteger(index+1);
+      _lua.getTable(-2);
 
-    if (_lua.isTable(-1)) _lua.getField(-1, 'callback');
-    _push(arg);
-    _callUserFunction(1, 0, context: context);
+      if (_lua.isTable(-1)) _lua.getField(-1, 'callback');
+      _push(arg);
+      _callUserFunction(1, 0, context: context);
+    } catch (e) {
+      print('Error during lua callback: $e');
+    }
   }
 
 

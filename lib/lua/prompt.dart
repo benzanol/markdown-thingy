@@ -24,16 +24,30 @@ sealed class LuaPromptItem {
     }
   }
 
-  Widget widget(BuildContext context);
+  Widget inputWidget(BuildContext context);
   LuaObject get object;
+
+  Widget widget(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(label, style: const TextStyle(fontSize: 22)),
+      const SizedBox(height: 5),
+      inputWidget(context),
+    ],
+  );
 }
 
 class LuaPromptSwitch extends LuaPromptItem {
   LuaPromptSwitch(super.table);
   @override LuaBoolean object = LuaBoolean(false);
   @override
-  Widget widget(BuildContext context) => (
-    Switch(value: object.value, onChanged: (v) => object = LuaBoolean(v))
+  Widget inputWidget(BuildContext context) => (
+    StatefulBuilder(
+      builder: (context, setState) => Switch(
+        value: object.value,
+        onChanged: (v) => setState(() => object = LuaBoolean(v)),
+      ),
+    )
   );
 }
 
@@ -42,7 +56,7 @@ class LuaPromptField extends LuaPromptItem {
   final controller = TextEditingController(text: '');
   @override LuaString get object => LuaString(controller.text);
   @override
-  Widget widget(BuildContext context) => TextField(
+  Widget inputWidget(BuildContext context) => TextField(
     controller: controller,
     maxLines: 1,
     style: const TextStyle(fontSize: luaUiTextSize),
@@ -52,7 +66,7 @@ class LuaPromptField extends LuaPromptItem {
         borderRadius: BorderRadius.all(Radius.circular(luaUiRadius)),
       ),
       contentPadding: EdgeInsets.all(luaUiPad),
-      isDense: true,
+      isDense: false,
     ),
   );
 }
@@ -73,7 +87,7 @@ class LuaPromptSelect extends LuaPromptItem {
   @override LuaString get object => LuaString(selected);
 
   @override
-  Widget widget(BuildContext context) => DropdownMenu(
+  Widget inputWidget(BuildContext context) => DropdownMenu(
     initialSelection: selected,
     onSelected: (val) => selected = val ?? selected,
     dropdownMenuEntries: options.map((opt) => DropdownMenuEntry(value: opt.$1, label: opt.$2)).toList(),
@@ -86,7 +100,7 @@ class LuaPromptTime extends LuaPromptItem {
   @override LuaObject get object => LuaNil();
 
   @override
-  Widget widget(BuildContext context) => TimePickerDialog(
+  Widget inputWidget(BuildContext context) => TimePickerDialog(
     initialTime: TimeOfDay.now(),
   );
 }
@@ -100,7 +114,12 @@ class LuaPromptCallback {
 
   Widget widget(BuildContext context, Function() onPress) => ElevatedButton(
     onPressed: onPress,
-    child: Text(label),
+    style: ElevatedButton.styleFrom(
+      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+      padding: const EdgeInsets.all(17)
+    ),
+    child: Text(label, style: const TextStyle(fontSize: 17)),
   );
 }
 
@@ -126,13 +145,18 @@ class LuaPrompt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: title?.pipe((t) => Text(t)),
+    title: title?.pipe((t) => Container(
+        padding: const EdgeInsets.only(bottom: 10),
+        decoration: const BoxDecoration(border: Border(bottom: BorderSide(width: 0.5))),
+        child: Center(child: Text(t, textScaler: const TextScaler.linear(1.2))),
+    )),
     content: SizedBox(
-      width: MediaQuery.of(context).size.width * 0.7,
-      height: MediaQuery.of(context).size.height * 0.7,
+      width: MediaQuery.of(context).size.width * 0.65,
+      height: MediaQuery.of(context).size.height * 0.6,
       child: Column(
         children: [
-          Expanded(child: ListView.builder(
+          Expanded(child: ListView.separated(
+              separatorBuilder: (context, index) => const SizedBox(height: 20),
               itemCount: options.length,
               itemBuilder: (context, idx) => options[idx].widget(context),
           )),
@@ -141,7 +165,7 @@ class LuaPrompt extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.end,
             children: cbs.indexed.map((cb) => (
                 cb.$2.widget(context, () => after(context, collectResults(), cb.$1))
-            )).toList(),
+            )).toList().reversed.toList(),
           ),
         ],
       ),
